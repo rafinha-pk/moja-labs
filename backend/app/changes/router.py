@@ -14,6 +14,7 @@ from app.environments.service import current
 from app.environments.tools import EnvironmentTools, environment_tools
 from app.errors import AppError
 from app.github.service import usable_token
+from app.tasks.service import archive_done
 from app.members.access import (
     ProjectAccess,
     can_run_project,
@@ -21,6 +22,8 @@ from app.members.access import (
 )
 
 router = APIRouter(prefix="/projects/{project_id}/changes", tags=["changes"])
+
+SHORT = 7
 
 Message = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
@@ -121,8 +124,10 @@ def commit_changes(
         if not repo.changes():
             raise AppError(409, "nothing_to_commit")
         repo.commit(body.message)
+        head = repo.head()
     except DockerError:
         raise AppError(502, "git_failed") from None
+    archive_done(db, access.project.id, head[:SHORT] if head else None)
     return _snapshot(repo)
 
 

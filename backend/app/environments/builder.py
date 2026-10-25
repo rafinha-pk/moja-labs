@@ -199,6 +199,7 @@ class _Job:
                 "checkout", "-f", "-B", self.branch, f"origin/{self.branch}"
             )
         exclude_locally(workspace)
+        self.git("rm", "-r", "--cached", "--ignore-unmatch", "-q", "--", "docs")
 
     def run(self) -> None:
         self.log("Checking Docker")

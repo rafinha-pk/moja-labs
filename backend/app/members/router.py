@@ -36,6 +36,7 @@ def _invite_out(
         project_name=project_name,
         email=invite.email,
         role=invite.role,
+        specialty=invite.specialty,
         invited_by_name=inviter_name,
         status=invite.status,
         created_at=invite.created_at,
@@ -71,6 +72,7 @@ def list_members(
             email=u.email,
             name=u.name,
             role=m.role,
+            specialty=m.specialty,
             joined_at=m.created_at,
         )
         for m, u in rows
@@ -90,6 +92,8 @@ def change_member_role(
     if member.role == Role.OWNER.value:
         raise AppError(409, "cannot_change_owner_role")
     member.role = body.role
+    if body.specialty is not None:
+        member.specialty = body.specialty
     db.commit()
     user = db.get(User, user_id)
     return MemberOut(
@@ -97,6 +101,7 @@ def change_member_role(
         email=user.email,
         name=user.name,
         role=member.role,
+        specialty=member.specialty,
         joined_at=member.created_at,
     )
 
@@ -141,6 +146,7 @@ def transfer_ownership(
         email=user.email,
         name=user.name,
         role=new_owner.role,
+        specialty=new_owner.specialty,
         joined_at=new_owner.created_at,
     )
 
@@ -207,6 +213,7 @@ def create_invite(
         project_id=access.project.id,
         email=body.email,
         role=body.role,
+        specialty=body.specialty,
         invited_by=access.user.id,
     )
     db.add(invite)
@@ -283,7 +290,10 @@ def accept_invite(
     if already_member is None:
         db.add(
             ProjectMember(
-                project_id=invite.project_id, user_id=user.id, role=invite.role
+                project_id=invite.project_id,
+                user_id=user.id,
+                role=invite.role,
+                specialty=invite.specialty,
             )
         )
     invite.status = InviteStatus.ACCEPTED.value

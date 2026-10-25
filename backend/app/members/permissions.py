@@ -7,6 +7,21 @@ class Role(StrEnum):
     DEV = "dev"
 
 
+class Specialty(StrEnum):
+    FRONTEND = "frontend"
+    BACKEND = "backend"
+    FULLSTACK = "fullstack"
+
+
+AREAS = tuple(item.value for item in Specialty)
+
+
+def allowed_areas(specialty: str) -> frozenset[str]:
+    if specialty == Specialty.FULLSTACK.value:
+        return frozenset(AREAS)
+    return frozenset({specialty})
+
+
 class Permission(StrEnum):
     PROJECT_VIEW = "project.view"
     PROJECT_EDIT = "project.edit"

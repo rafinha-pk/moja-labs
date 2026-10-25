@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { pt } from '../i18n/pt';
 import { Avatar } from './Avatar';
 import { Menu, MenuItem } from './Menu';
+import { UsageBars } from './UsageBars';
 
 function BrandMark() {
   return (
@@ -66,6 +67,7 @@ export function Layout() {
               </NavLink>
             )}
           </nav>
+          {user && <UsageBars />}
           {user && (
             <Menu
               label={pt.nav.userMenu}

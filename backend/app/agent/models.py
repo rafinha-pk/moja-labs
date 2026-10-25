@@ -2,6 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import Boolean, ForeignKey, Index, String, Text
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.clock import utcnow
@@ -36,13 +37,18 @@ class AgentRun(Base):
     error_code: Mapped[str | None] = mapped_column(String(40))
     session_id: Mapped[str | None] = mapped_column(String(64))
     resumed_from: Mapped[int | None]
+    scope: Mapped[str | None] = mapped_column(String(10))
     task_id: Mapped[int | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="SET NULL"), index=True
     )
     model: Mapped[str] = mapped_column(String(40))
     effort: Mapped[str] = mapped_column(String(10))
     thinking: Mapped[bool] = mapped_column(Boolean, default=False)
-    head_commit: Mapped[str | None] = mapped_column(String(40))
+    docs_snapshot: Mapped[str | None] = mapped_column(LONGTEXT)
     output: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     finished_at: Mapped[datetime | None]
+
+    @property
+    def from_docs(self) -> bool:
+        return self.docs_snapshot is not None

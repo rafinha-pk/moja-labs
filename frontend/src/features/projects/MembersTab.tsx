@@ -1,13 +1,13 @@
 import { useCallback, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { invitesApi, membersApi, projectsApi } from '../../api';
-import type { AssignableRole, Member } from '../../api/types';
+import type { AssignableRole, Member, Specialty } from '../../api/types';
 import { useAction } from '../../api/useAction';
 import { useRequest } from '../../api/useRequest';
 import { useCurrentUser } from '../../auth/AuthContext';
 import { Alert } from '../../components/Alert';
 import { Avatar } from '../../components/Avatar';
-import { RoleBadge } from '../../components/Badge';
+import { Badge, RoleBadge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Card, ListRow } from '../../components/Card';
 import { ErrorAlert, fieldError } from '../../components/ErrorAlert';
@@ -18,6 +18,16 @@ import { pt } from '../../i18n/pt';
 import { useProject } from './ProjectLayout';
 
 const ASSIGNABLE: AssignableRole[] = ['po', 'dev'];
+
+const SPECIALTIES: Specialty[] = ['fullstack', 'frontend', 'backend'];
+
+function SpecialtyOptions() {
+  return SPECIALTIES.map((specialty) => (
+    <option key={specialty} value={specialty}>
+      {pt.members.specialties[specialty]}
+    </option>
+  ));
+}
 
 function RoleOptions() {
   return ASSIGNABLE.map((role) => (
@@ -37,12 +47,15 @@ function InviteForm({
   const { run, pending, error } = useAction();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AssignableRole>('dev');
+  const [specialty, setSpecialty] = useState<Specialty>('fullstack');
   const [sent, setSent] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSent(false);
-    const result = await run(() => invitesApi.create(projectId, email, role));
+    const result = await run(() =>
+      invitesApi.create(projectId, email, role, specialty),
+    );
     if (result) {
       setEmail('');
       setSent(true);
@@ -55,7 +68,7 @@ function InviteForm({
       <form onSubmit={submit} className="flex flex-col gap-4 p-4">
         <ErrorAlert error={error} />
         {sent && <Alert tone="success">{pt.members.sent}</Alert>}
-        <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
+        <div className="grid gap-4 sm:grid-cols-[1fr_10rem_10rem]">
           <TextField
             id="invite-email"
             label={pt.members.email}
@@ -74,6 +87,19 @@ function InviteForm({
           >
             <RoleOptions />
           </SelectField>
+          {role === 'dev' && (
+            <SelectField
+              id="invite-specialty"
+              label={pt.members.specialty}
+              hint={pt.members.specialtyHint}
+              value={specialty}
+              onChange={(event) =>
+                setSpecialty(event.target.value as Specialty)
+              }
+            >
+              <SpecialtyOptions />
+            </SelectField>
+          )}
         </div>
         <div>
           <Button type="submit" variant="primary" disabled={pending}>
@@ -115,7 +141,10 @@ function PendingInvites({
           <ListRow key={invite.id}>
             <div>
               <span className="text-sm font-semibold">{invite.email}</span>{' '}
-              <RoleBadge role={invite.role} />
+              <RoleBadge role={invite.role} />{' '}
+              {invite.role === 'dev' && (
+                <Badge>{pt.members.specialties[invite.specialty]}</Badge>
+              )}
             </div>
             <Button small onClick={() => cancel(invite.id)}>
               {pt.members.cancelInvite}
@@ -212,9 +241,13 @@ export function MembersTab() {
   const [toRemove, setToRemove] = useState<Member | null>(null);
   const [transferring, setTransferring] = useState(false);
 
-  const changeRole = async (member: Member, role: AssignableRole) => {
+  const changeRole = async (
+    member: Member,
+    role: AssignableRole,
+    specialty?: Specialty,
+  ) => {
     const result = await change.run(() =>
-      membersApi.changeRole(project.id, member.user_id, role),
+      membersApi.changeRole(project.id, member.user_id, role, specialty),
     );
     if (result) reload();
   };
@@ -291,6 +324,25 @@ export function MembersTab() {
                   ) : (
                     <RoleBadge role={member.role} />
                   )}
+                  {member.role === 'dev' &&
+                    (isOwner ? (
+                      <select
+                        aria-label={pt.members.specialty}
+                        value={member.specialty}
+                        onChange={(event) =>
+                          changeRole(
+                            member,
+                            'dev',
+                            event.target.value as Specialty,
+                          )
+                        }
+                        className="rounded-md border border-control-line bg-control px-2 py-1 text-sm"
+                      >
+                        <SpecialtyOptions />
+                      </select>
+                    ) : (
+                      <Badge>{pt.members.specialties[member.specialty]}</Badge>
+                    ))}
                   {isOwner && member.role !== 'owner' && (
                     <Button
                       small

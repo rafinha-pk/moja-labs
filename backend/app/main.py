@@ -23,6 +23,7 @@ from app.skills.router import router as skills_router
 from app.tasks.execution import router as execution_router
 from app.tasks.plan import router as plan_router
 from app.tasks.router import router as tasks_router
+from app.usage.router import router as usage_router
 from app.users.router import router as users_router
 
 
@@ -53,6 +54,7 @@ app.include_router(setup_router)
 app.include_router(run_router)
 app.include_router(documents_router)
 app.include_router(agent_router)
+app.include_router(usage_router)
 app.include_router(changes_router)
 app.include_router(plan_router)
 app.include_router(execution_router)

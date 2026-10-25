@@ -23,7 +23,6 @@ class Project(Base):
     type: Mapped[str] = mapped_column(String(20))
     access_url: Mapped[str | None] = mapped_column(String(300))
     run_command: Mapped[str | None] = mapped_column(Text)
-    tasks_base_commit: Mapped[str | None] = mapped_column(String(40))
     tasks_model: Mapped[str] = mapped_column(
         String(40), default="claude-sonnet-5-5"
     )

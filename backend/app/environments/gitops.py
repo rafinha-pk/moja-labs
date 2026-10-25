@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from app.environments.docker import Docker, DockerError
 
 DIFF_LIMIT = 100_000
-DOC_PATHS = ("docs", "README.md")
+DOCS = "docs"
+EXCLUDE_DOCS = f":(exclude){DOCS}"
 
 
 def git_credentials(token: str) -> tuple[dict[str, str], tuple[str, str]]:
@@ -73,16 +74,23 @@ class Repo:
 
     def changes(self) -> list[Change]:
         found = []
-        for line in self.git("status", "--porcelain", "-uall").splitlines():
+        listing = self.git(
+            "status", "--porcelain", "-uall", "--", ".", EXCLUDE_DOCS
+        )
+        for line in listing.splitlines():
             status, _, path = line.strip().partition(" ")
             found.append(Change(status, path.strip()))
         return found
 
     def diff(self) -> str:
         self.git("add", "-N", ".")
-        return self.git("diff", "HEAD")[:DIFF_LIMIT]
+        return self.git("diff", "HEAD", "--", ".", EXCLUDE_DOCS)[:DIFF_LIMIT]
+
+    def untrack_docs(self) -> None:
+        self.git("rm", "-r", "--cached", "--ignore-unmatch", "-q", "--", DOCS)
 
     def commit(self, message: str) -> None:
+        self.untrack_docs()
         self.git("add", "-A")
         self.git("commit", "-m", message)
 
@@ -101,30 +109,24 @@ class Repo:
         except DockerError:
             return None
 
-    def knows(self, commit: str) -> bool:
-        try:
-            self.git("cat-file", "-e", f"{commit}^{{commit}}")
-        except DockerError:
-            return False
-        return True
-
-    def docs_dirty(self) -> bool:
-        return bool(self.git("status", "--porcelain", "--", *DOC_PATHS))
-
-    def docs_files(self, base: str) -> list[str]:
-        names = self.git("diff", "--name-only", base, "HEAD", "--", *DOC_PATHS)
-        return [name for name in names.splitlines() if name]
-
-    def docs_diff(self, base: str) -> str:
-        return self.git("diff", base, "HEAD", "--", *DOC_PATHS)[:DIFF_LIMIT]
-
     def history(self, limit: int = 20) -> list[HistoryEntry]:
         lines = self.git(
             "log", "-n", str(limit), "--format=%h%x09%an%x09%ar%x09%s"
         ).splitlines()
         entries = []
         for line in lines:
-            parts = line.split("\t", 3)
+            parts = line.split("	", 3)
             if len(parts) == 4:
                 entries.append(HistoryEntry(*parts))
         return entries
+
+    def commit_times(self, limit: int = 200) -> list[tuple[str, int]]:
+        lines = self.git(
+            "log", "-n", str(limit), "--format=%h%x09%ct"
+        ).splitlines()
+        found = []
+        for line in lines:
+            short, _, stamp = line.partition("\t")
+            if short and stamp.isdigit():
+                found.append((short, int(stamp)))
+        return found

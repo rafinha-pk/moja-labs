@@ -19,7 +19,7 @@ from app.members.access import (
 from app.projects.models import Project
 from app.tasks import service
 from app.tasks.models import Task, TaskStatus
-from app.tasks.router import _find
+from app.tasks.router import _find, find_allowed
 from app.tasks.schemas import TaskOut
 from app.users.models import User
 
@@ -86,10 +86,14 @@ def execute_all(
     tools: EnvironmentTools = Depends(environment_tools),
 ):
     project = access.project
-    tasks = service.project_tasks(db, project.id)
+    tasks = service.project_tasks(db, project.id, archived=False)
     if any(task.status in BUSY for task in tasks):
         raise AppError(409, "task_busy")
-    pending = [task for task in tasks if task.status == TaskStatus.TODO.value]
+    pending = [
+        task
+        for task in tasks
+        if task.status == TaskStatus.TODO.value and task.area in access.areas
+    ]
     if not pending:
         raise AppError(409, "nothing_to_execute")
     preflight(db, project, tools)
@@ -140,7 +144,7 @@ def execute_task(
     db: Session = Depends(get_db),
     tools: EnvironmentTools = Depends(environment_tools),
 ):
-    task = _find(db, access.project.id, task_id)
+    task = find_allowed(db, access, task_id)
     if task.status in BUSY:
         raise AppError(409, "task_busy")
     start_run(
@@ -155,7 +159,7 @@ def execute_task(
     )
     db.commit()
     db.expire_all()
-    return service.tasks_out(db, [_find(db, access.project.id, task_id)])[0]
+    return service.tasks_out(db, [find_allowed(db, access, task_id)])[0]
 
 
 @router.get("/{task_id}/run", response_model=RunOut)

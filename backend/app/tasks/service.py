@@ -1,8 +1,13 @@
-from sqlalchemy import case, func, select
+from datetime import UTC, datetime
+
+from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import Session
 
 from app.agent.models import AgentRun
-from app.tasks.models import Task, TaskSource, TaskStatus
+from app.clock import utcnow
+from app.environments.docker import DockerError
+from app.environments.gitops import Repo
+from app.tasks.models import Task, TaskArea, TaskSource, TaskStatus
 from app.tasks.schemas import TaskOut
 
 TITLE_LIMIT = 150
@@ -15,6 +20,7 @@ def create_task(
     title: str,
     description: str | None,
     source: TaskSource = TaskSource.MANUAL,
+    area: str = TaskArea.FULLSTACK.value,
 ) -> Task:
     last = db.scalar(
         select(func.max(Task.position)).where(Task.project_id == project_id)
@@ -25,6 +31,7 @@ def create_task(
         description=description,
         position=(last or 0) + 1,
         source=source.value,
+        area=area,
         status=TaskStatus.TODO.value,
     )
     db.add(task)
@@ -32,14 +39,32 @@ def create_task(
     return task
 
 
-def project_tasks(db: Session, project_id: int) -> list[Task]:
-    return list(
-        db.scalars(
-            select(Task)
-            .where(Task.project_id == project_id)
-            .order_by(Task.position, Task.id)
+def project_tasks(
+    db: Session, project_id: int, archived: bool | None = None
+) -> list[Task]:
+    query = select(Task).where(Task.project_id == project_id)
+    if archived is True:
+        query = query.where(Task.archived_at.is_not(None)).order_by(
+            Task.archived_at.desc(), Task.id.desc()
         )
+    else:
+        if archived is False:
+            query = query.where(Task.archived_at.is_(None))
+        query = query.order_by(Task.position, Task.id)
+    return list(db.scalars(query))
+
+
+def archive_done(db: Session, project_id: int, commit: str | None) -> None:
+    db.execute(
+        update(Task)
+        .where(
+            Task.project_id == project_id,
+            Task.status == TaskStatus.DONE.value,
+            Task.archived_at.is_(None),
+        )
+        .values(archived_at=utcnow(), archived_commit=commit)
     )
+    db.commit()
 
 
 def task_counts(
@@ -91,3 +116,32 @@ def tasks_out(db: Session, tasks: list[Task]) -> list[TaskOut]:
         )
         for task in tasks
     ]
+
+
+def archive_committed(db: Session, project_id: int, repo: Repo) -> None:
+    done = list(
+        db.scalars(
+            select(Task).where(
+                Task.project_id == project_id,
+                Task.status == TaskStatus.DONE.value,
+                Task.archived_at.is_(None),
+            )
+        )
+    )
+    if not done:
+        return
+    try:
+        commits = list(reversed(repo.commit_times()))
+    except DockerError:
+        return
+    if not commits:
+        return
+    for task in done:
+        finished = int(task.updated_at.replace(tzinfo=UTC).timestamp())
+        found = next((c for c in commits if c[1] >= finished), None)
+        if found is not None:
+            task.archived_commit = found[0]
+            task.archived_at = datetime.fromtimestamp(found[1], UTC).replace(
+                tzinfo=None
+            )
+    db.commit()

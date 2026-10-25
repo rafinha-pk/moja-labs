@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.agent.models import AgentRun, RunStatus
@@ -8,10 +9,14 @@ from app.agent.options import EFFORTS, MODELS
 from app.agent.router import RunOut, _out
 from app.agent.service import purge_runs, start_run
 from app.db import get_db
-from app.environments.docker import DockerError
-from app.environments.gitops import Repo
-from app.environments.models import EnvironmentStatus
-from app.environments.service import current
+from app.documents.models import DocSnapshot
+from app.documents.service import (
+    DocChange,
+    compare_docs,
+    docs_diff,
+    read_docs,
+    workspace_of,
+)
 from app.environments.tools import EnvironmentTools, environment_tools
 from app.errors import AppError
 from app.members.access import (
@@ -19,10 +24,12 @@ from app.members.access import (
     can_edit_planning,
     can_view_project,
 )
+from app.members.permissions import AREAS
 from app.projects.models import Project
 from app.tasks import service
 from app.tasks.models import Task, TaskSource
 from app.tasks.schemas import (
+    ChangedDoc,
     PlanApply,
     PlanState,
     SettingsIn,
@@ -33,57 +40,49 @@ from app.tasks.schemas import (
 router = APIRouter(prefix="/projects/{project_id}/tasks", tags=["tasks"])
 
 PROMPT_DIFF_LIMIT = 60_000
-SHORT = 8
 
 
-def _repo(db: Session, project_id: int, tools: EnvironmentTools) -> Repo:
-    environment = current(db, project_id)
-    if (
-        environment is None
-        or environment.status != EnvironmentStatus.READY.value
-        or not environment.container
-    ):
-        raise AppError(409, "environment_not_ready")
-    repo = Repo(tools.docker, environment.container)
-    try:
-        repo.turn_on()
-    except DockerError:
-        raise AppError(502, "docker_unavailable") from None
-    return repo
+def _snapshot(db: Session, project_id: int) -> dict[str, str]:
+    rows = db.scalars(
+        select(DocSnapshot).where(DocSnapshot.project_id == project_id)
+    )
+    return {row.path: row.content for row in rows}
 
 
-def _state(project: Project, repo: Repo) -> PlanState:
-    try:
-        head = repo.head()
-        base = project.tasks_base_commit
-        if base is not None and not repo.knows(base):
-            base = None
-        dirty = repo.docs_dirty()
-        files = repo.docs_files(base) if base and head else []
-    except DockerError:
-        raise AppError(502, "git_failed") from None
+def _state(
+    db: Session, project: Project
+) -> tuple[PlanState, dict[str, str], dict[str, str], list[DocChange]]:
+    current = read_docs(workspace_of(db, project.id))
+    before = _snapshot(db, project.id)
+    first = not before
+    changes = compare_docs(before, current)
     reason = None
-    if head is None:
-        reason = "no_commits"
-    elif dirty:
-        reason = "docs_uncommitted"
-    elif base is not None and (head == base or not files):
+    if not current:
+        reason = "no_docs"
+    elif not first and not changes:
         reason = "nothing_new"
-    return PlanState(
-        head=head,
-        base=base,
-        uncommitted=dirty,
-        changed_files=files,
+    state = PlanState(
+        first=first,
+        changed_files=[
+            ChangedDoc(path=change.path, status=change.status)
+            for change in changes
+        ],
         can_search=reason is None,
         reason=reason,
     )
+    return state, before, current, changes
 
 
 def _search_prompt(
-    db: Session, project: Project, repo: Repo, state: PlanState
+    db: Session,
+    project_id: int,
+    before: dict[str, str],
+    current: dict[str, str],
+    changes: list[DocChange],
+    first: bool,
 ) -> str:
-    existing = service.existing_tasks_text(db, project.id)
-    if state.base is None:
+    existing = service.existing_tasks_text(db, project_id)
+    if first:
         return (
             "This is the first task search for this project. Read every "
             "document under docs/ and README.md and propose the complete "
@@ -91,11 +90,11 @@ def _search_prompt(
             "describe.\n\nExisting tasks (do not duplicate them):\n"
             f"{existing}"
         )
-    diff = repo.docs_diff(state.base)[:PROMPT_DIFF_LIMIT]
+    listing = ", ".join(f"{c.path} ({c.status})" for c in changes)
+    diff = docs_diff(before, current, changes)[:PROMPT_DIFF_LIMIT]
     return (
-        "The documentation changed between commit "
-        f"{state.base[:SHORT]} and commit {state.head[:SHORT]}.\n"
-        f"Changed files: {', '.join(state.changed_files)}\n\n"
+        "The documentation changed since the last task search.\n"
+        f"Changed files: {listing}\n\n"
         f"```diff\n{diff}\n```\n\n"
         "Read the changed documents if you need more context. Propose "
         "tasks only for what these changes require, without duplicating "
@@ -134,11 +133,9 @@ def save_settings(
 
 @router.get("/plan", response_model=PlanState)
 def read_plan(
-    access: ProjectAccess = can_view_project,
-    db: Session = Depends(get_db),
-    tools: EnvironmentTools = Depends(environment_tools),
+    access: ProjectAccess = can_view_project, db: Session = Depends(get_db)
 ):
-    return _state(access.project, _repo(db, access.project.id, tools))
+    return _state(db, access.project)[0]
 
 
 @router.post("/plan/search", response_model=RunOut, status_code=201)
@@ -148,19 +145,21 @@ def search_tasks(
     tools: EnvironmentTools = Depends(environment_tools),
 ):
     project = access.project
-    repo = _repo(db, project.id, tools)
-    state = _state(project, repo)
+    state, before, current, changes = _state(db, project)
     if not state.can_search:
         raise AppError(409, state.reason)
+    prompt = _search_prompt(
+        db, project.id, before, current, changes, state.first
+    )
     run = start_run(
         db,
         project,
         access.user,
         "tasks",
-        _search_prompt(db, project, repo, state),
+        prompt,
         tools,
         new_conversation=True,
-        head_commit=state.head,
+        docs_snapshot=json.dumps(current, ensure_ascii=False),
     )
     return _out(run)
 
@@ -192,13 +191,22 @@ def apply_plan(
             continue
         known.add(title[: service.TITLE_LIMIT].casefold())
         description = str(item.get("description", "")).strip() or None
+        area = str(item.get("area", ""))
+        if area not in AREAS:
+            area = "fullstack"
         created.append(
             service.create_task(
-                db, project.id, title, description, TaskSource.AI
+                db, project.id, title, description, TaskSource.AI, area
             )
         )
-    if run.head_commit:
-        project.tasks_base_commit = run.head_commit
+    if run.docs_snapshot:
+        db.execute(
+            delete(DocSnapshot).where(DocSnapshot.project_id == project.id)
+        )
+        for path, content in json.loads(run.docs_snapshot).items():
+            db.add(
+                DocSnapshot(project_id=project.id, path=path, content=content)
+            )
     db.commit()
     purge_runs(db, project.id, tools.claude_home, "tasks")
     return service.tasks_out(db, created)

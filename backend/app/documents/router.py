@@ -6,8 +6,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.environments.models import EnvironmentStatus
-from app.environments.service import current
+from app.documents.service import (
+    FOLDER,
+    MAX_BYTES,
+    REQUIRED,
+    ROOT_FILE,
+    workspace_of,
+)
 from app.errors import AppError
 from app.members.access import (
     ProjectAccess,
@@ -16,12 +21,6 @@ from app.members.access import (
 )
 
 router = APIRouter(prefix="/projects/{project_id}/documents", tags=["docs"])
-
-FOLDER = "docs"
-ROOT_FILE = "README.md"
-MAX_BYTES = 500_000
-REQUIRED = ("docs/escopo.md", "docs/planejamento.md")
-
 
 class DocumentOut(BaseModel):
     path: str
@@ -39,17 +38,6 @@ class DocumentContent(BaseModel):
 class DocumentIn(BaseModel):
     path: str = Field(min_length=1, max_length=200)
     content: str = Field(max_length=MAX_BYTES)
-
-
-def _workspace(db: Session, project_id: int) -> Path:
-    environment = current(db, project_id)
-    if (
-        environment is None
-        or environment.status != EnvironmentStatus.READY.value
-        or not environment.workspace
-    ):
-        raise AppError(409, "environment_not_ready")
-    return Path(environment.workspace)
 
 
 def _resolve(workspace: Path, path: str) -> Path:
@@ -84,7 +72,7 @@ def _entry(workspace: Path, file: Path) -> DocumentOut:
 def list_documents(
     access: ProjectAccess = can_view_project, db: Session = Depends(get_db)
 ):
-    workspace = _workspace(db, access.project.id)
+    workspace = workspace_of(db, access.project.id)
     files = sorted((workspace / FOLDER).rglob("*.md"))
     root = workspace / ROOT_FILE
     if root.is_file():
@@ -107,7 +95,7 @@ def read_document(
     access: ProjectAccess = can_view_project,
     db: Session = Depends(get_db),
 ):
-    workspace = _workspace(db, access.project.id)
+    workspace = workspace_of(db, access.project.id)
     target = _resolve(workspace, path)
     if not target.is_file():
         raise AppError(404, "document_not_found")
@@ -122,7 +110,7 @@ def save_document(
     access: ProjectAccess = can_edit_planning,
     db: Session = Depends(get_db),
 ):
-    workspace = _workspace(db, access.project.id)
+    workspace = workspace_of(db, access.project.id)
     target = _resolve(workspace, body.path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(body.content, encoding="utf-8", newline="\n")
@@ -135,7 +123,7 @@ def delete_document(
     access: ProjectAccess = can_edit_planning,
     db: Session = Depends(get_db),
 ) -> None:
-    workspace = _workspace(db, access.project.id)
+    workspace = workspace_of(db, access.project.id)
     target = _resolve(workspace, path)
     if not target.is_file():
         raise AppError(404, "document_not_found")

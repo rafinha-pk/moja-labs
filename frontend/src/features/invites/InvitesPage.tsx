@@ -4,7 +4,7 @@ import { invitesApi } from '../../api';
 import type { Invite } from '../../api/types';
 import { useAction } from '../../api/useAction';
 import { useRequest } from '../../api/useRequest';
-import { RoleBadge } from '../../components/Badge';
+import { Badge, RoleBadge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Card, ListRow } from '../../components/Card';
 import { ErrorAlert } from '../../components/ErrorAlert';
@@ -47,7 +47,10 @@ export function InvitesPage() {
                   <p className="text-sm font-semibold">{invite.project_name}</p>
                   <p className="text-xs text-muted">
                     {pt.invites.from} {invite.invited_by_name}{' '}
-                    {pt.invites.asRole} <RoleBadge role={invite.role} />
+                    {pt.invites.asRole} <RoleBadge role={invite.role} />{' '}
+                    {invite.role === 'dev' && (
+                      <Badge>{pt.members.specialties[invite.specialty]}</Badge>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-2">

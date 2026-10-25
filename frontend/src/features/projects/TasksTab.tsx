@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { setupApi, tasksApi } from '../../api';
-import type { Task, TaskSettings, TaskStatus } from '../../api/types';
+import type {
+  Specialty,
+  Task,
+  TaskSettings,
+  TaskStatus,
+} from '../../api/types';
 import { useAction } from '../../api/useAction';
 import { useRequest } from '../../api/useRequest';
 import { Alert } from '../../components/Alert';
@@ -9,12 +14,13 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Card, ListRow } from '../../components/Card';
 import { ErrorAlert, fieldError } from '../../components/ErrorAlert';
-import { TextArea, TextField } from '../../components/Field';
+import { SelectField, TextArea, TextField } from '../../components/Field';
 import { Loading } from '../../components/Loading';
 import { Markdown } from '../../components/Markdown';
 import { ConfirmDialog, Modal } from '../../components/Modal';
 import { Progress } from '../../components/Progress';
 import { pt } from '../../i18n/pt';
+import { allowedAreas } from '../../lib/areas';
 import { ModelSelects } from '../tasks/ModelSelects';
 import { PlannerPanel } from '../tasks/PlannerPanel';
 import { useProject } from './ProjectLayout';
@@ -29,22 +35,25 @@ function isBusy(task: Task): boolean {
 function TaskDialog({
   projectId,
   task,
+  areas,
   onClose,
   onSaved,
 }: {
   projectId: number;
   task: Task;
+  areas: Specialty[];
   onClose: () => void;
   onSaved: (task: Task) => void;
 }) {
   const { run, pending, error } = useAction();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
+  const [area, setArea] = useState<Specialty>(task.area);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const result = await run(() =>
-      tasksApi.update(projectId, task.id, { title, description }),
+      tasksApi.update(projectId, task.id, { title, description, area }),
     );
     if (result) onSaved(result.value);
   };
@@ -79,6 +88,19 @@ function TaskDialog({
           onChange={(event) => setTitle(event.target.value)}
           error={fieldError(error, 'title')}
         />
+        <SelectField
+          id="task-area"
+          label={pt.tasks.area.label}
+          hint={pt.tasks.area.hint}
+          value={area}
+          onChange={(event) => setArea(event.target.value as Specialty)}
+        >
+          {areas.map((item) => (
+            <option key={item} value={item}>
+              {pt.tasks.area[item]}
+            </option>
+          ))}
+        </SelectField>
         <TextArea
           id="task-description"
           label={pt.tasks.descriptionLabel}
@@ -206,6 +228,7 @@ function TaskRow({
   busy,
   running,
   canRun,
+  areas,
   onChange,
   onEdit,
   onRemove,
@@ -217,6 +240,7 @@ function TaskRow({
   busy: boolean;
   running: boolean;
   canRun: boolean;
+  areas: Specialty[];
   onChange: (patch: Parameters<typeof tasksApi.update>[2]) => void;
   onEdit: () => void;
   onRemove: () => void;
@@ -225,6 +249,7 @@ function TaskRow({
   const custom = task.model || task.effort || task.thinking !== null;
   const [showResult, setShowResult] = useState(false);
   const working = isBusy(task);
+  const mine = areas.includes(task.area);
 
   useEffect(() => {
     if (task.status === 'doing') setShowResult(true);
@@ -235,8 +260,12 @@ function TaskRow({
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
             {task.title}
+            <Badge>{pt.tasks.area[task.area]}</Badge>
             {task.source === 'ai' && <Badge>{pt.tasks.fromAi}</Badge>}
           </p>
+          {!mine && (
+            <p className="mt-1 text-xs text-muted">{pt.tasks.area.other}</p>
+          )}
           {task.description && (
             <p className="mt-1 text-sm whitespace-pre-line text-muted">
               {task.description}
@@ -247,7 +276,7 @@ function TaskRow({
           <select
             aria-label={pt.tasks.statusLabel}
             value={task.status}
-            disabled={busy || working}
+            disabled={busy || working || !mine}
             onChange={(event) =>
               onChange({ status: event.target.value as TaskStatus })
             }
@@ -259,7 +288,7 @@ function TaskRow({
               </option>
             ))}
           </select>
-          {canRun && (
+          {canRun && mine && (
             <Button
               small
               variant="primary"
@@ -271,10 +300,20 @@ function TaskRow({
                 : pt.tasks.run.again}
             </Button>
           )}
-          <Button small variant="invisible" disabled={working} onClick={onEdit}>
+          <Button
+            small
+            variant="invisible"
+            disabled={working || !mine}
+            onClick={onEdit}
+          >
             {pt.tasks.edit}
           </Button>
-          <Button small variant="danger" disabled={working} onClick={onRemove}>
+          <Button
+            small
+            variant="danger"
+            disabled={working || !mine}
+            onClick={onRemove}
+          >
             {pt.common.delete}
           </Button>
         </div>
@@ -292,7 +331,7 @@ function TaskRow({
             effort={task.effort}
             thinking={task.thinking}
             inherit
-            disabled={busy}
+            disabled={busy || !mine}
             onChange={onChange}
           />
         </div>
@@ -332,7 +371,16 @@ export function TasksTab() {
   const [removing, setRemoving] = useState<Task | null>(null);
   const [adding, setAdding] = useState(false);
   const canRun = project.role === 'owner' || project.role === 'dev';
+  const areas = allowedAreas(project.specialty);
+  const [area, setArea] = useState<Specialty>(
+    areas.includes('fullstack') ? 'fullstack' : areas[0]!,
+  );
   const reloadTasks = tasks.reload;
+  const loadArchived = useCallback(
+    () => tasksApi.list(project.id, true),
+    [project.id, tasks.data?.length ?? -1],
+  );
+  const archived = useRequest(loadArchived);
   const anyBusy = tasks.data?.some(isBusy) ?? false;
 
   useEffect(() => {
@@ -363,7 +411,7 @@ export function TasksTab() {
   const create = async (event: FormEvent) => {
     event.preventDefault();
     const result = await add.run(() =>
-      tasksApi.create(project.id, { title, description }),
+      tasksApi.create(project.id, { title, description, area }),
     );
     if (result) {
       tasks.setData([...list, result.value]);
@@ -446,6 +494,12 @@ export function TasksTab() {
               <Button small onClick={() => setAdding((value) => !value)}>
                 {pt.tasks.newButton}
               </Button>
+              <Link
+                to="executed"
+                className="inline-flex items-center rounded-md border border-control-line bg-control px-2 py-0.5 text-xs font-medium text-fg no-underline hover:bg-control-hover"
+              >
+                {pt.tasks.executed.open(archived.data?.length ?? 0)}
+              </Link>
             </div>
           }
         >
@@ -456,6 +510,14 @@ export function TasksTab() {
             <Progress done={done} total={list.length} />
           </div>
           <ErrorAlert error={action.error} />
+          {project.role === 'dev' && project.specialty !== 'fullstack' && (
+            <p className="border-b border-line-muted px-4 py-3 text-sm text-muted">
+              {pt.tasks.area.scopeInfo(
+                pt.tasks.area[project.specialty],
+                project.specialty,
+              )}
+            </p>
+          )}
           {list.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted">
               {pt.tasks.empty}
@@ -471,6 +533,7 @@ export function TasksTab() {
                   busy={action.pending}
                   running={anyBusy}
                   canRun={canRun}
+                  areas={areas}
                   onExecute={() => executeOne(task)}
                   onChange={(patch) => change(task, patch)}
                   onEdit={() => setEditing(task)}
@@ -494,6 +557,19 @@ export function TasksTab() {
                 onChange={(event) => setTitle(event.target.value)}
                 error={fieldError(add.error, 'title')}
               />
+              <SelectField
+                id="new-task-area"
+                label={pt.tasks.area.label}
+                hint={pt.tasks.area.hint}
+                value={area}
+                onChange={(event) => setArea(event.target.value as Specialty)}
+              >
+                {areas.map((item) => (
+                  <option key={item} value={item}>
+                    {pt.tasks.area[item]}
+                  </option>
+                ))}
+              </SelectField>
               <TextArea
                 id="new-task-description"
                 label={`${pt.tasks.descriptionLabel} ${pt.common.optional}`}
@@ -523,6 +599,7 @@ export function TasksTab() {
         <TaskDialog
           projectId={project.id}
           task={editing}
+          areas={areas}
           onClose={() => setEditing(null)}
           onSaved={(task) => {
             replace(task);

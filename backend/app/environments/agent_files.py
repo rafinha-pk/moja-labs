@@ -11,7 +11,7 @@ from app.environments.tools import EnvironmentTools
 from app.projects.models import Project
 from app.skills.models import ProjectSkill, Skill
 
-LOCAL_ONLY = ("CLAUDE.md", ".claude/")
+LOCAL_ONLY = ("CLAUDE.md", ".claude/", "docs/")
 
 
 def slugify(text: str, fallback: str) -> str:
@@ -55,6 +55,15 @@ def claude_md(
         "",
         "Use git for version control and work on a branch per task.",
     ]
+    if project.type == "web":
+        lines += [
+            "",
+            "## Layout",
+            "",
+            "Every web project follows one layout: back-end code in "
+            "`backend/`, front-end code in `frontend/` and documentation in "
+            "`docs/`. Keep new code inside those folders.",
+        ]
     if links:
         lines += [
             "",

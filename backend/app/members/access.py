@@ -9,7 +9,13 @@ from app.auth.deps import get_current_user
 from app.db import get_db
 from app.errors import AppError
 from app.members.models import ProjectMember
-from app.members.permissions import Permission, Role, has_permission
+from app.members.permissions import (
+    Permission,
+    Role,
+    Specialty,
+    allowed_areas,
+    has_permission,
+)
 from app.projects.models import Project
 from app.users.models import User
 
@@ -25,6 +31,30 @@ class ProjectAccess:
         if self.user.is_superadmin or self.membership is None:
             return Role.OWNER
         return Role(self.membership.role)
+
+    @property
+    def specialty(self) -> str:
+        if self.role != Role.DEV or self.membership is None:
+            return Specialty.FULLSTACK.value
+        return self.membership.specialty
+
+    @property
+    def areas(self) -> frozenset[str]:
+        return allowed_areas(self.specialty)
+
+
+def member_specialty(db: Session, project_id: int, user: User) -> str:
+    if user.is_superadmin:
+        return Specialty.FULLSTACK.value
+    membership = db.scalar(
+        select(ProjectMember).where(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user.id,
+        )
+    )
+    if membership is None or membership.role != Role.DEV.value:
+        return Specialty.FULLSTACK.value
+    return membership.specialty
 
 
 def project_access(permission: Permission) -> Callable[..., ProjectAccess]:

@@ -31,6 +31,7 @@ class ProjectMember(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     role: Mapped[str] = mapped_column(String(20))
+    specialty: Mapped[str] = mapped_column(String(10), default="fullstack")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
@@ -46,6 +47,7 @@ class ProjectInvite(Base):
     )
     email: Mapped[str] = mapped_column(String(254))
     role: Mapped[str] = mapped_column(String(20))
+    specialty: Mapped[str] = mapped_column(String(10), default="fullstack")
     invited_by: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE")
     )

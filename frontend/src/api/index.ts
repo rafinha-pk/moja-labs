@@ -12,6 +12,8 @@ import type {
   Environment,
   RunState,
   AgentKind,
+  Usage,
+  Specialty,
   AgentRun,
   PlanState,
   TaskSettings,
@@ -76,9 +78,15 @@ export const projectsApi = {
 export const membersApi = {
   list: (projectId: number) =>
     request<Member[]>('GET', `/projects/${projectId}/members`),
-  changeRole: (projectId: number, userId: number, role: AssignableRole) =>
+  changeRole: (
+    projectId: number,
+    userId: number,
+    role: AssignableRole,
+    specialty?: Specialty,
+  ) =>
     request<Member>('PATCH', `/projects/${projectId}/members/${userId}`, {
       role,
+      specialty,
     }),
   remove: (projectId: number, userId: number) =>
     request<void>('DELETE', `/projects/${projectId}/members/${userId}`),
@@ -96,8 +104,17 @@ export const membersApi = {
 export const invitesApi = {
   forProject: (projectId: number) =>
     request<Invite[]>('GET', `/projects/${projectId}/invites`),
-  create: (projectId: number, email: string, role: AssignableRole) =>
-    request<Invite>('POST', `/projects/${projectId}/invites`, { email, role }),
+  create: (
+    projectId: number,
+    email: string,
+    role: AssignableRole,
+    specialty: Specialty,
+  ) =>
+    request<Invite>('POST', `/projects/${projectId}/invites`, {
+      email,
+      role,
+      specialty,
+    }),
   cancel: (projectId: number, inviteId: number) =>
     request<void>('DELETE', `/projects/${projectId}/invites/${inviteId}`),
   mine: () => request<Invite[]>('GET', '/invites'),
@@ -162,16 +179,22 @@ export const setupApi = {
 };
 
 export const tasksApi = {
-  list: (projectId: number) =>
-    request<Task[]>('GET', `/projects/${projectId}/tasks`),
-  create: (projectId: number, data: { title: string; description?: string }) =>
-    request<Task>('POST', `/projects/${projectId}/tasks`, data),
+  list: (projectId: number, archived = false) =>
+    request<Task[]>(
+      'GET',
+      `/projects/${projectId}/tasks${archived ? '?archived=true' : ''}`,
+    ),
+  create: (
+    projectId: number,
+    data: { title: string; description?: string; area?: Specialty },
+  ) => request<Task>('POST', `/projects/${projectId}/tasks`, data),
   update: (
     projectId: number,
     taskId: number,
     data: {
       title?: string;
       description?: string | null;
+      area?: Specialty;
       status?: TaskStatus;
       model?: string | null;
       effort?: string | null;
@@ -295,4 +318,9 @@ export const changesApi = {
     request<Changes>('POST', `/projects/${projectId}/changes/push`),
   suggest: (projectId: number) =>
     request<AgentRun>('POST', `/projects/${projectId}/changes/suggest`),
+};
+
+export const usageApi = {
+  get: () => request<Usage>('GET', '/usage'),
+  refresh: () => request<Usage>('POST', '/usage/refresh'),
 };

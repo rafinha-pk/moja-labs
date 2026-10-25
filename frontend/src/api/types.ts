@@ -1,6 +1,7 @@
 export type Role = 'owner' | 'po' | 'dev';
 export type AssignableRole = Exclude<Role, 'owner'>;
 export type ProjectType = 'web' | 'youtube' | 'mobile';
+export type Specialty = 'frontend' | 'backend' | 'fullstack';
 export type StageKey = 'modeling' | 'coding' | 'testing' | 'deploy';
 export type SkillScope = StageKey | 'docs' | 'planning' | 'execution';
 export type TaskStatus = 'todo' | 'queued' | 'doing' | 'done' | 'failed';
@@ -30,6 +31,7 @@ export interface Project {
   owner_id: number;
   role: Role;
   member_role: Role | null;
+  specialty: Specialty;
   access_url: string | null;
   tasks_total: number;
   tasks_done: number;
@@ -41,6 +43,7 @@ export interface Member {
   email: string;
   name: string;
   role: Role;
+  specialty: Specialty;
   joined_at: string;
 }
 
@@ -50,6 +53,7 @@ export interface Invite {
   project_name: string;
   email: string;
   role: AssignableRole;
+  specialty: Specialty;
   invited_by_name: string;
   status: string;
   created_at: string;
@@ -96,6 +100,9 @@ export interface Task {
   description: string | null;
   status: TaskStatus;
   position: number;
+  area: Specialty;
+  archived_at: string | null;
+  archived_commit: string | null;
   source: 'manual' | 'ai';
   model: string | null;
   effort: string | null;
@@ -113,11 +120,14 @@ export interface TaskSettings {
   efforts: string[];
 }
 
+export interface ChangedDoc {
+  path: string;
+  status: 'added' | 'modified' | 'removed';
+}
+
 export interface PlanState {
-  head: string | null;
-  base: string | null;
-  uncommitted: boolean;
-  changed_files: string[];
+  first: boolean;
+  changed_files: ChangedDoc[];
   can_search: boolean;
   reason: string | null;
 }
@@ -196,7 +206,7 @@ export interface AgentRunSummary {
   status: AgentStatus;
   summary: string | null;
   output: PlanOutput | null;
-  head_commit: string | null;
+  from_docs: boolean;
   resumed_from: number | null;
   error_code: string | null;
   created_at: string;
@@ -239,4 +249,15 @@ export interface RunState {
   ready: boolean;
   url: string | null;
   log: string;
+}
+
+export interface UsageWindow {
+  percent: number;
+  resets_at: string;
+}
+
+export interface Usage {
+  five_hour: UsageWindow | null;
+  seven_day: UsageWindow | null;
+  updated_at: string | null;
 }

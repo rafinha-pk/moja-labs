@@ -85,6 +85,14 @@ export const pt = {
     inviteHint: 'A pessoa precisa já ter uma conta no Moja Labs.',
     email: 'E-mail',
     role: 'Papel',
+    specialty: 'Especialidade',
+    specialties: {
+      frontend: 'Front-end',
+      backend: 'Back-end',
+      fullstack: 'Full-stack',
+    },
+    specialtyHint:
+      'Quem é só front-end ou só back-end mexe apenas nas tarefas da própria área.',
     send: 'Enviar convite',
     sent: 'Convite enviado.',
     pending: 'Convites pendentes',
@@ -307,6 +315,8 @@ export const pt = {
       tree: 'Árvore de documentos',
       choose:
         'Escolha um documento na árvore para ler ou editar, ou crie um novo.',
+      localOnly:
+        'A documentação fica só no Moja: ela não vai para o Git nem para o GitHub.',
       newName: 'Novo documento',
       newHint: 'Use / para criar em uma pasta, por exemplo api/rotas.',
       create: 'Criar',
@@ -381,6 +391,31 @@ export const pt = {
       failed: 'Falhou',
     },
     statusLabel: 'Situação',
+    area: {
+      label: 'Área',
+      frontend: 'Front-end',
+      backend: 'Back-end',
+      fullstack: 'Full-stack',
+      hint: 'Full-stack: a tarefa mexe nos dois lados.',
+      scopeInfo: (label: string, folder: string) =>
+        `Como dev ${label}, a IA só altera ${folder}/, docs/ e README.md ao executar as suas tarefas.`,
+      other:
+        'Esta tarefa é de outra área: só quem tem essa especialidade mexe nela.',
+    },
+    executed: {
+      title: 'Tarefas já executadas',
+      empty:
+        'Nenhuma ainda. As tarefas concluídas vão para cá quando você faz o commit.',
+      hint: 'As tarefas concluídas ficam na lista até o commit.',
+      commit: 'commit',
+      reopen: 'Reabrir',
+      open: (total: number) => `Executadas (${total})`,
+      back: 'Voltar para as tarefas',
+      intro:
+        'Tarefas concluídas que já passaram por um commit. Reabrir devolve a tarefa para a lista principal.',
+      count: (total: number) =>
+        `${total} já executada${total === 1 ? '' : 's'} (após commit)`,
+    },
     run: {
       execute: 'Executar',
       again: 'Executar de novo',
@@ -429,14 +464,17 @@ export const pt = {
       search: 'Buscar tarefas',
       first:
         'Primeira busca: a IA vai ler toda a documentação (docs/ e README) e propor as tarefas.',
-      since: (commit: string, files: number) =>
-        `A documentação mudou desde o commit ${commit} (${files} arquivo${files === 1 ? '' : 's'}). A IA vai olhar só o que mudou.`,
+      changed: (files: number) =>
+        `A documentação mudou desde a última busca (${files} arquivo${files === 1 ? '' : 's'}). A IA vai olhar só o que mudou.`,
+      fileStatus: {
+        added: 'nova',
+        modified: 'alterada',
+        removed: 'removida',
+      } as Record<string, string>,
       reasons: {
-        docs_uncommitted:
-          'Há alterações nas documentações sem commit. Aprove o commit em "Alterações" para a IA enxergá-las.',
+        no_docs: 'Ainda não há documentos. Escreva a documentação primeiro.',
         nothing_new:
           'Nada novo na documentação desde a última busca de tarefas.',
-        no_commits: 'O repositório ainda não tem nenhum commit.',
       } as Record<string, string>,
       searchLabel: 'Buscar tarefas na documentação',
       searchTitle: 'Buscar tarefas nas docs',
@@ -551,6 +589,26 @@ export const pt = {
     text: 'O endereço não existe ou o projeto não está disponível para você.',
     back: 'Voltar para os projetos',
   },
+  usage: {
+    session: 'Sessão',
+    week: 'Semana',
+    used: 'usado',
+    unknown: 'sem dados',
+    resets: (remaining: string) => `reinicia em ${remaining}`,
+    expired: 'já reiniciou: atualize',
+    refresh: 'Atualizar o uso do Claude',
+    refreshHint:
+      'Atualizar agora (faz uma chamada mínima ao Claude). O uso também é atualizado a cada vez que a IA responde.',
+    failed: 'Não foi possível ler o uso do Claude.',
+  },
+  dictation: {
+    start: 'Falar',
+    stop: 'Parar de falar',
+    listening: 'Ouvindo…',
+    autoSend: 'Enviar ao terminar de falar',
+    denied: 'Permita o uso do microfone no navegador para ditar.',
+    failed: 'Não foi possível ouvir. Tente de novo.',
+  },
   errors: {
     not_authenticated: 'Faça login para continuar.',
     invalid_token: 'Sua sessão é inválida. Entre novamente.',
@@ -600,12 +658,12 @@ export const pt = {
       'Só é possível usar o README.md e arquivos .md dentro de docs/.',
     document_not_found: 'Documento não encontrado.',
     run_not_found: 'Solicitação não encontrada.',
-    docs_uncommitted:
-      'Há alterações nas documentações sem commit. Aprove o commit primeiro.',
     nothing_new: 'Nada novo na documentação desde a última busca de tarefas.',
-    no_commits: 'O repositório ainda não tem nenhum commit.',
+    no_docs: 'Ainda não há documentos. Escreva a documentação primeiro.',
     no_plan_conversation: 'Busque as tarefas antes de conversar sobre elas.',
     plan_not_ready: 'Essa proposta de tarefas não está pronta para ser criada.',
+    wrong_area:
+      'Esta tarefa é de outra área. A sua especialidade não permite mexer nela.',
     task_busy: 'Há uma tarefa em execução ou na fila.',
     nothing_to_execute: 'Não há tarefas a fazer para executar.',
     environment_busy: 'O ambiente já está sendo construído.',

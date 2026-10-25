@@ -31,6 +31,7 @@ def _to_out(
     role: str,
     member_role: str | None,
     progress: tuple[int, int] = (0, 0),
+    specialty: str = "fullstack",
 ) -> ProjectOut:
     return ProjectOut(
         id=project.id,
@@ -40,6 +41,7 @@ def _to_out(
         owner_id=project.owner_id,
         role=role,
         member_role=member_role,
+        specialty=specialty,
         access_url=project.access_url,
         tasks_total=progress[0],
         tasks_done=progress[1],
@@ -55,6 +57,7 @@ def _access_out(access: ProjectAccess, db: Session) -> ProjectOut:
         access.role.value,
         member_role,
         progress.get(access.project.id, (0, 0)),
+        access.specialty,
     )
 
 

@@ -84,6 +84,9 @@ export function DocsTab() {
             unsaved={draft}
             onSelect={setSelected}
           />
+          <p className="border-t border-line px-3 py-2 text-xs text-muted">
+            {text.files.localOnly}
+          </p>
           <form
             onSubmit={create}
             className="flex items-end gap-2 border-t border-line p-3"

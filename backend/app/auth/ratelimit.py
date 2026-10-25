@@ -37,8 +37,14 @@ class RateLimiter:
 login_email_limiter = RateLimiter(max_attempts=5, window_seconds=15 * 60)
 login_ip_limiter = RateLimiter(max_attempts=30, window_seconds=15 * 60)
 invite_limiter = RateLimiter(max_attempts=20, window_seconds=10 * 60)
+usage_limiter = RateLimiter(max_attempts=6, window_seconds=60)
 
 
 def reset_all() -> None:
-    for limiter in (login_email_limiter, login_ip_limiter, invite_limiter):
+    for limiter in (
+        login_email_limiter,
+        login_ip_limiter,
+        invite_limiter,
+        usage_limiter,
+    ):
         limiter.reset()

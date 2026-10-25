@@ -16,6 +16,12 @@ class TaskStatus(StrEnum):
     FAILED = "failed"
 
 
+class TaskArea(StrEnum):
+    FRONTEND = "frontend"
+    BACKEND = "backend"
+    FULLSTACK = "fullstack"
+
+
 class TaskSource(StrEnum):
     MANUAL = "manual"
     AI = "ai"
@@ -34,6 +40,11 @@ class Task(Base):
         String(10), default=TaskStatus.TODO.value
     )
     position: Mapped[int]
+    area: Mapped[str] = mapped_column(
+        String(10), default=TaskArea.FULLSTACK.value
+    )
+    archived_at: Mapped[datetime | None]
+    archived_commit: Mapped[str | None] = mapped_column(String(40))
     source: Mapped[str] = mapped_column(
         String(10), default=TaskSource.MANUAL.value
     )

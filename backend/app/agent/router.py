@@ -46,7 +46,7 @@ class RunSummary(BaseModel):
     status: Literal["running", "done", "failed", "stopped"]
     summary: str | None
     output: dict | None
-    head_commit: str | None
+    from_docs: bool
     resumed_from: int | None
     error_code: str | None
     created_at: datetime

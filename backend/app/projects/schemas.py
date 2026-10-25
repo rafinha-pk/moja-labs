@@ -39,6 +39,7 @@ class ProjectOut(BaseModel):
     owner_id: int
     role: str
     member_role: str | None
+    specialty: str = "fullstack"
     access_url: str | None = None
     tasks_total: int = 0
     tasks_done: int = 0

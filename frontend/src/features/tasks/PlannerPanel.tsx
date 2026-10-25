@@ -8,11 +8,11 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ErrorAlert } from '../../components/ErrorAlert';
 import { Loading } from '../../components/Loading';
+import { MicButton } from '../../components/MicButton';
 import { pt } from '../../i18n/pt';
 import { conversationOf, latestDraft } from '../../lib/chat';
 
 const POLL_MS = 2000;
-const SHORT_COMMIT = 7;
 
 interface PlannerPanelProps {
   projectId: number;
@@ -113,8 +113,8 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
     if (result) runs.reload();
   };
 
-  const send = async () => {
-    const message = prompt.trim();
+  const send = async (override?: string) => {
+    const message = (override ?? prompt).trim();
     if (!message) return;
     const result = await action.run(() =>
       agentApi.start(projectId, message, false, 'tasks'),
@@ -152,13 +152,22 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
         <div className="flex flex-col gap-3 p-4 text-sm">
           {state && (
             <p className="text-muted">
-              {state.base
-                ? text.since(
-                    state.base.slice(0, SHORT_COMMIT),
-                    state.changed_files.length,
-                  )
-                : text.first}
+              {state.first
+                ? text.first
+                : text.changed(state.changed_files.length)}
             </p>
+          )}
+          {state && !state.first && state.changed_files.length > 0 && (
+            <ul className="flex flex-col gap-1 text-xs">
+              {state.changed_files.map((file) => (
+                <li key={file.path} className="flex items-center gap-2">
+                  <code>{file.path}</code>
+                  <span className="text-muted">
+                    {text.fileStatus[file.status]}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
           {state && state.reason && (
             <p className="text-warning">
@@ -206,7 +215,7 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
                 <div key={run.id} className="flex flex-col gap-2">
                   <Bubble mine>
                     <p className="whitespace-pre-wrap">
-                      {run.head_commit && run.resumed_from === null
+                      {run.from_docs && run.resumed_from === null
                         ? text.searchLabel
                         : userText(run.prompt)}
                     </p>
@@ -237,7 +246,15 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
               className="w-full resize-none rounded-md border border-line bg-inset px-3 py-1.5 text-sm text-fg placeholder:text-muted focus:border-accent-emphasis disabled:opacity-60"
             />
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-muted">{text.refineHint}</p>
+              <div className="flex min-w-0 flex-col gap-1">
+                <MicButton
+                  value={prompt}
+                  disabled={running}
+                  onChange={setPrompt}
+                  onSend={(spoken) => void send(spoken)}
+                />
+                <p className="text-xs text-muted">{text.refineHint}</p>
+              </div>
               <div className="flex gap-2">
                 {running ? (
                   <Button variant="danger" onClick={stop}>
@@ -247,7 +264,7 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
                   <>
                     <Button
                       disabled={action.pending || prompt.trim() === ''}
-                      onClick={send}
+                      onClick={() => void send()}
                     >
                       {text.send}
                     </Button>

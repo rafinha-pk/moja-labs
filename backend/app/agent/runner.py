@@ -8,12 +8,13 @@ from pathlib import Path
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from app.agent.kinds import KINDS
+from app.agent.kinds import KINDS, scope_note, write_rules
 from app.agent.models import AgentRun, RunStatus
 from app.clock import utcnow
 from app.environments.service import current
 from app.environments.tools import EnvironmentTools
 from app.tasks.models import Task, TaskStatus
+from app.usage.service import record as record_usage
 
 LOG_LIMIT = 20000
 PROCESSES: dict[int, subprocess.Popen] = {}
@@ -28,6 +29,8 @@ def build_command(
     kind = KINDS[run.kind]
     allowed = list(kind.allowed)
     denied: list[str] = []
+    if run.kind == "task":
+        allowed += write_rules(run.scope)
     if kind.shell and container:
         prefix = f"{' '.join(tools.docker.command)} exec {container}"
         allowed.append(f"Bash({prefix}:*)")
@@ -52,7 +55,7 @@ def build_command(
         "--allowedTools",
         *allowed,
         "--append-system-prompt",
-        kind.system,
+        kind.system + scope_note(run.scope),
         "--setting-sources",
         "project,local",
     ]
@@ -152,6 +155,8 @@ def _stream(
                 continue
             if event.get("session_id"):
                 run.session_id = event["session_id"]
+            if event.get("type") == "rate_limit_event":
+                record_usage(db, event.get("rate_limit_info") or {})
             if event.get("type") == "result":
                 result = event
             text = describe(event, workspace)

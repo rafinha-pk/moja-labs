@@ -8,6 +8,7 @@ import { Bubble } from '../../components/Bubble';
 import { Card } from '../../components/Card';
 import { ErrorAlert } from '../../components/ErrorAlert';
 import { Loading } from '../../components/Loading';
+import { MicButton } from '../../components/MicButton';
 import { Markdown } from '../../components/Markdown';
 import { pt } from '../../i18n/pt';
 import { conversationOf } from '../../lib/chat';
@@ -92,8 +93,8 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
   if (runs.error) return <ErrorAlert error={runs.error} />;
   if (!runs.data) return <Loading />;
 
-  const send = async () => {
-    const message = prompt.trim();
+  const send = async (override?: string) => {
+    const message = (override ?? prompt).trim();
     if (!message) return;
     const result = await action.run(() =>
       agentApi.start(projectId, message, conversation.length === 0),
@@ -182,7 +183,15 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
             className="w-full resize-none rounded-md border border-line bg-inset px-3 py-1.5 text-sm text-fg placeholder:text-muted focus:border-accent-emphasis disabled:opacity-60"
           />
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-muted">{text.hint}</p>
+            <div className="flex min-w-0 flex-col gap-1">
+              <MicButton
+                value={prompt}
+                disabled={running}
+                onChange={setPrompt}
+                onSend={(spoken) => void send(spoken)}
+              />
+              <p className="text-xs text-muted">{text.hint}</p>
+            </div>
             {running ? (
               <Button variant="danger" onClick={stop}>
                 {text.stop}
@@ -191,7 +200,7 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
               <Button
                 variant="primary"
                 disabled={action.pending || prompt.trim() === ''}
-                onClick={send}
+                onClick={() => void send()}
               >
                 {text.send}
               </Button>

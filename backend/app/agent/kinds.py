@@ -11,6 +11,32 @@ class Kind:
     shell: bool = False
 
 
+AREA_FOLDERS = {"frontend": "frontend", "backend": "backend"}
+SHARED_PATHS = ("docs", "README.md")
+
+
+def write_rules(scope: str | None) -> tuple[str, ...]:
+    if scope not in AREA_FOLDERS:
+        return ("Write", "Edit")
+    folders = [f"{AREA_FOLDERS[scope]}/**", "docs/**", "README.md"]
+    return tuple(
+        f"{tool}({folder})" for folder in folders for tool in ("Write", "Edit")
+    )
+
+
+def scope_note(scope: str | None) -> str:
+    if scope not in AREA_FOLDERS:
+        return ""
+    folder = AREA_FOLDERS[scope]
+    return (
+        f" You work as a {scope} developer: you may only create or change "
+        f"files under {folder}/, under docs/ and README.md. This also "
+        "applies to commands you run in the container: never write "
+        "anywhere else. If the task needs a change elsewhere, say so in "
+        "your summary instead of doing it."
+    )
+
+
 TASKS_SCHEMA = json.dumps(
     {
         "type": "object",
@@ -23,8 +49,12 @@ TASKS_SCHEMA = json.dumps(
                     "properties": {
                         "title": {"type": "string"},
                         "description": {"type": "string"},
+                        "area": {
+                            "type": "string",
+                            "enum": ["frontend", "backend", "fullstack"],
+                        },
                     },
-                    "required": ["title", "description"],
+                    "required": ["title", "description", "area"],
                 },
             },
         },
@@ -77,7 +107,11 @@ KINDS = {
             "implementation tasks. Never edit files. Each task has a short "
             "title (at most 150 characters) and a description with what to "
             "do and the acceptance criteria, small enough for one coding "
-            "session. Order the tasks by implementation order and write in "
+            "session. Web projects keep the back-end in backend/ and the "
+            "front-end in frontend/. Tag each task with its `area`: "
+            "frontend, backend, or "
+            "fullstack when it needs both. Order the tasks by implementation "
+            "order and write in "
             "the language of the docs. If CLAUDE.md lists skills for the "
             "planning stage, use them. Always answer through the structured "
             "output: `message` is a short reply to the user and `tasks` is "
@@ -103,7 +137,7 @@ KINDS = {
     ),
     "task": Kind(
         tools="Read,Write,Edit,Glob,Grep,Skill,Bash",
-        allowed=("Read", "Glob", "Grep", "Skill", "Write", "Edit"),
+        allowed=("Read", "Glob", "Grep", "Skill"),
         shell=True,
         system=(
             "You implement one task of this software project, working "

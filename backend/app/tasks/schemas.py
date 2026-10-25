@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -9,7 +9,7 @@ from pydantic import (
 )
 
 from app.agent.options import EFFORTS, MODELS
-from app.tasks.models import TaskSource, TaskStatus
+from app.tasks.models import TaskArea, TaskSource, TaskStatus
 
 
 def _one_of(options: tuple[str, ...]):
@@ -34,12 +34,14 @@ Effort = Annotated[str, _one_of(EFFORTS)]
 class TaskCreate(BaseModel):
     title: Title
     description: Description | None = None
+    area: TaskArea = TaskArea.FULLSTACK
 
 
 class TaskUpdate(BaseModel):
     title: Title | None = None
     description: Description | None = None
     status: TaskStatus | None = None
+    area: TaskArea | None = None
     model: Model | None = None
     effort: Effort | None = None
     thinking: bool | None = None
@@ -53,6 +55,9 @@ class TaskOut(BaseModel):
     description: str | None
     status: TaskStatus
     position: int
+    area: TaskArea
+    archived_at: datetime | None = None
+    archived_commit: str | None = None
     source: TaskSource
     model: str | None
     effort: str | None
@@ -73,11 +78,14 @@ class SettingsOut(SettingsIn):
     efforts: list[str]
 
 
+class ChangedDoc(BaseModel):
+    path: str
+    status: Literal["added", "modified", "removed"]
+
+
 class PlanState(BaseModel):
-    head: str | None
-    base: str | None
-    uncommitted: bool
-    changed_files: list[str]
+    first: bool
+    changed_files: list[ChangedDoc]
     can_search: bool
     reason: str | None
 

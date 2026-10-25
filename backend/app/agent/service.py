@@ -13,6 +13,7 @@ from app.environments.docker import DockerError
 from app.environments.models import EnvironmentStatus
 from app.environments.service import current
 from app.environments.tools import EnvironmentTools
+from app.members.access import member_specialty
 from app.errors import AppError
 from app.projects.models import Project
 from app.tasks.models import Task, TaskStatus
@@ -145,7 +146,7 @@ def create_run(
     prompt: str,
     tools: EnvironmentTools,
     new_conversation: bool,
-    head_commit: str | None = None,
+    docs_snapshot: str | None = None,
     task: Task | None = None,
 ) -> AgentRun:
     preflight(db, project, tools)
@@ -162,7 +163,7 @@ def create_run(
         purge_runs(db, project.id, tools.claude_home, kind)
     else:
         previous = _previous_run(db, project.id, kind)
-    if kind == "tasks" and previous is None and head_commit is None:
+    if kind == "tasks" and previous is None and docs_snapshot is None:
         prompt = (
             "Existing tasks (do not duplicate them):\n"
             f"{existing_tasks_text(db, project.id)}\n\nRequest:\n{prompt}"
@@ -172,12 +173,13 @@ def create_run(
         project_id=project.id,
         user_id=user.id,
         task_id=task.id if task else None,
+        scope=member_specialty(db, project.id, user) if task else None,
         kind=kind,
         prompt=prompt,
         status=RunStatus.RUNNING.value,
         resumed_from=previous.id if previous else None,
-        head_commit=head_commit
-        or (previous.head_commit if previous else None),
+        docs_snapshot=docs_snapshot
+        or (previous.docs_snapshot if previous else None),
         model=model,
         effort=effort,
         thinking=thinking,
@@ -196,7 +198,7 @@ def start_run(
     prompt: str,
     tools: EnvironmentTools,
     new_conversation: bool,
-    head_commit: str | None = None,
+    docs_snapshot: str | None = None,
     task: Task | None = None,
 ) -> AgentRun:
     run = create_run(
@@ -207,7 +209,7 @@ def start_run(
         prompt,
         tools,
         new_conversation,
-        head_commit,
+        docs_snapshot,
         task,
     )
     bind = db.get_bind()

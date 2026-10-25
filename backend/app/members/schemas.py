@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app.common import Email
 
 AssignableRole = Literal["po", "dev"]
+SpecialtyName = Literal["frontend", "backend", "fullstack"]
 
 
 class MemberOut(BaseModel):
@@ -13,12 +14,14 @@ class MemberOut(BaseModel):
     email: str
     name: str
     role: str
+    specialty: str
     joined_at: datetime
 
 
 class InviteCreate(BaseModel):
     email: Email
     role: AssignableRole
+    specialty: SpecialtyName = "fullstack"
 
 
 class InviteOut(BaseModel):
@@ -27,6 +30,7 @@ class InviteOut(BaseModel):
     project_name: str
     email: str
     role: str
+    specialty: str
     invited_by_name: str
     status: str
     created_at: datetime
@@ -34,6 +38,7 @@ class InviteOut(BaseModel):
 
 class RoleUpdate(BaseModel):
     role: AssignableRole
+    specialty: SpecialtyName | None = None
 
 
 class TransferOwnership(BaseModel):
