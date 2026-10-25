@@ -1,10 +1,21 @@
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.clock import utcnow
 from app.db import Base
+
+
+class SkillScope(StrEnum):
+    DOCS = "docs"
+    PLANNING = "planning"
+    EXECUTION = "execution"
+    MODELING = "modeling"
+    CODING = "coding"
+    TESTING = "testing"
+    DEPLOY = "deploy"
 
 
 class Skill(Base):

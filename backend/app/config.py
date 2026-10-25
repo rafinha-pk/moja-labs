@@ -37,10 +37,13 @@ class Settings:
     workspaces_dir: Path
     docker_command: list[str]
     claude_command: list[str]
+    claude_home: Path
     agent_model: str
     agent_effort: str
     agent_timeout_seconds: int
     project_port_base: int
+    project_public_host: str
+    project_bind_address: str
 
 
 def _default_docker_command() -> str:
@@ -69,12 +72,19 @@ def load_settings() -> Settings:
             os.environ.get("DOCKER_COMMAND") or _default_docker_command()
         ),
         claude_command=shlex.split(os.environ.get("CLAUDE_COMMAND", "claude")),
+        claude_home=Path(
+            os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude"
+        ),
         agent_model=os.environ.get("AGENT_MODEL", "claude-sonnet-5-5"),
         agent_effort=os.environ.get("AGENT_EFFORT", "medium"),
         agent_timeout_seconds=int(
             os.environ.get("AGENT_TIMEOUT_SECONDS", "1800")
         ),
         project_port_base=int(os.environ.get("PROJECT_PORT_BASE", "21000")),
+        project_public_host=os.environ.get("PROJECT_PUBLIC_HOST", "localhost"),
+        project_bind_address=os.environ.get(
+            "PROJECT_BIND_ADDRESS", "127.0.0.1"
+        ),
     )
 
 

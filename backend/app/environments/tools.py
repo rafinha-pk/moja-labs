@@ -19,6 +19,9 @@ class EnvironmentTools:
     workspaces: Path
     claude_command: list[str]
     port_base: int
+    claude_home: Path
+    public_host: str = "localhost"
+    bind_address: str = "127.0.0.1"
     agent_model: str = "claude-sonnet-5-5"
     agent_effort: str = "medium"
     agent_timeout_seconds: int = 1800
@@ -31,6 +34,9 @@ def environment_tools() -> EnvironmentTools:
         workspaces=settings.workspaces_dir,
         claude_command=settings.claude_command,
         port_base=settings.project_port_base,
+        claude_home=settings.claude_home,
+        public_host=settings.project_public_host,
+        bind_address=settings.project_bind_address,
         agent_model=settings.agent_model,
         agent_effort=settings.agent_effort,
         agent_timeout_seconds=settings.agent_timeout_seconds,

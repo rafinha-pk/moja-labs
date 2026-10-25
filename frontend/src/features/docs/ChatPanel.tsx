@@ -4,6 +4,7 @@ import type { AgentRunSummary, AgentStatus } from '../../api/types';
 import { useAction } from '../../api/useAction';
 import { useRequest } from '../../api/useRequest';
 import { Button } from '../../components/Button';
+import { Bubble } from '../../components/Bubble';
 import { Card } from '../../components/Card';
 import { ErrorAlert } from '../../components/ErrorAlert';
 import { Loading } from '../../components/Loading';
@@ -17,26 +18,6 @@ const PROMPT_MAX = 8000;
 interface ChatPanelProps {
   projectId: number;
   onFinished: () => void;
-}
-
-function Bubble({
-  mine,
-  children,
-}: {
-  mine: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[92%] rounded-md border px-3 py-2 text-sm ${
-          mine ? 'border-accent-emphasis bg-subtle' : 'border-line bg-canvas'
-        }`}
-      >
-        {children}
-      </div>
-    </div>
-  );
 }
 
 function Answer({ run, liveLog }: { run: AgentRunSummary; liveLog: string }) {
@@ -72,11 +53,10 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
   const runs = useRequest(loadRuns);
   const action = useAction();
   const [prompt, setPrompt] = useState('');
-  const [cleared, setCleared] = useState(0);
   const messages = useRef<HTMLDivElement>(null);
   const previous = useRef<AgentStatus | null>(null);
 
-  const conversation = conversationOf(runs.data ?? [], cleared);
+  const conversation = conversationOf(runs.data ?? []);
   const last = conversation[conversation.length - 1];
   const running = last?.status === 'running';
 
@@ -129,7 +109,10 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
     runs.reload();
   };
 
-  const newConversation = () => setCleared(runs.data?.[0]?.id ?? 0);
+  const newConversation = async () => {
+    const result = await action.run(() => agentApi.clear(projectId));
+    if (result) runs.reload();
+  };
 
   return (
     <Card
@@ -138,7 +121,7 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
       action={
         <Button
           small
-          disabled={running || conversation.length === 0}
+          disabled={running || action.pending || conversation.length === 0}
           onClick={newConversation}
         >
           {text.newConversation}

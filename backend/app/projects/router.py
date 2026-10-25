@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent.service import purge_runs
 from app.auth.deps import get_current_user
 from app.db import get_db
 from app.environments.service import teardown
@@ -143,6 +144,7 @@ def delete_project(
     tools: EnvironmentTools = Depends(environment_tools),
 ):
     teardown(db, access.project.id, tools.docker)
+    purge_runs(db, access.project.id, tools.claude_home)
     db.delete(access.project)
     db.commit()
     return Response(status_code=204)

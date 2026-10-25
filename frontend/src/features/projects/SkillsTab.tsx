@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { skillsApi } from '../../api';
-import type { ProjectSkill, Skill, StageKey } from '../../api/types';
+import type { ProjectSkill, Skill, SkillScope } from '../../api/types';
 import { useAction } from '../../api/useAction';
 import { useRequest } from '../../api/useRequest';
 import { Alert } from '../../components/Alert';
@@ -12,7 +12,15 @@ import { Loading } from '../../components/Loading';
 import { pt } from '../../i18n/pt';
 import { useProject } from './ProjectLayout';
 
-const STAGES: StageKey[] = ['modeling', 'coding', 'testing', 'deploy'];
+const SCOPES: SkillScope[] = [
+  'docs',
+  'planning',
+  'execution',
+  'modeling',
+  'coding',
+  'testing',
+  'deploy',
+];
 
 function StageSkills({
   stage,
@@ -21,7 +29,7 @@ function StageSkills({
   canEdit,
   onChange,
 }: {
-  stage: StageKey;
+  stage: SkillScope;
   attached: ProjectSkill[];
   library: Skill[];
   canEdit: boolean;
@@ -38,9 +46,11 @@ function StageSkills({
   };
 
   return (
-    <Card title={pt.tasks.stageNames[stage]}>
+    <Card title={pt.skills.scopes[stage]}>
       {attached.length === 0 && (
-        <p className="px-4 py-3 text-sm text-muted">{pt.skills.none}</p>
+        <p className="px-4 py-3 text-sm text-muted">
+          {pt.skills.noneByScope[stage] ?? pt.skills.none}
+        </p>
       )}
       <ul>
         {attached.map((skill) => (
@@ -108,7 +118,7 @@ export function SkillsTab() {
   }
   if (!attached.data || !library.data) return <Loading />;
 
-  const change = async (stage: StageKey, ids: number[]) => {
+  const change = async (stage: SkillScope, ids: number[]) => {
     const result = await action.run(() =>
       skillsApi.setForStage(project.id, stage, ids),
     );
@@ -125,7 +135,7 @@ export function SkillsTab() {
         </Alert>
       )}
       <ErrorAlert error={action.error} />
-      {STAGES.map((stage) => (
+      {SCOPES.map((stage) => (
         <StageSkills
           key={stage}
           stage={stage}

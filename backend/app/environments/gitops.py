@@ -1,9 +1,10 @@
 import base64
 from dataclasses import dataclass
 
-from app.environments.docker import Docker
+from app.environments.docker import Docker, DockerError
 
 DIFF_LIMIT = 100_000
+DOC_PATHS = ("docs", "README.md")
 
 
 def git_credentials(token: str) -> tuple[dict[str, str], tuple[str, str]]:
@@ -31,6 +32,14 @@ class Change:
 @dataclass
 class Commit:
     hash: str
+    subject: str
+
+
+@dataclass
+class HistoryEntry:
+    hash: str
+    author: str
+    when: str
     subject: str
 
 
@@ -85,3 +94,37 @@ class Repo:
             "log", "--format=%h%x09%s", "HEAD", "--not", "--remotes"
         ).splitlines()
         return [Commit(*line.split("\t", 1)) for line in lines if "\t" in line]
+
+    def head(self) -> str | None:
+        try:
+            return self.git("rev-parse", "HEAD")
+        except DockerError:
+            return None
+
+    def knows(self, commit: str) -> bool:
+        try:
+            self.git("cat-file", "-e", f"{commit}^{{commit}}")
+        except DockerError:
+            return False
+        return True
+
+    def docs_dirty(self) -> bool:
+        return bool(self.git("status", "--porcelain", "--", *DOC_PATHS))
+
+    def docs_files(self, base: str) -> list[str]:
+        names = self.git("diff", "--name-only", base, "HEAD", "--", *DOC_PATHS)
+        return [name for name in names.splitlines() if name]
+
+    def docs_diff(self, base: str) -> str:
+        return self.git("diff", base, "HEAD", "--", *DOC_PATHS)[:DIFF_LIMIT]
+
+    def history(self, limit: int = 20) -> list[HistoryEntry]:
+        lines = self.git(
+            "log", "-n", str(limit), "--format=%h%x09%an%x09%ar%x09%s"
+        ).splitlines()
+        entries = []
+        for line in lines:
+            parts = line.split("\t", 3)
+            if len(parts) == 4:
+                entries.append(HistoryEntry(*parts))
+        return entries

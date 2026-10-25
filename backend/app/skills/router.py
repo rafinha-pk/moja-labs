@@ -5,13 +5,15 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
 from app.db import get_db
+from app.environments.agent_files import sync_agent_files
+from app.environments.tools import EnvironmentTools, environment_tools
 from app.errors import AppError
 from app.members.access import (
     ProjectAccess,
     can_edit_project,
     can_view_project,
 )
-from app.skills.models import ProjectSkill, Skill
+from app.skills.models import ProjectSkill, Skill, SkillScope
 from app.skills.schemas import (
     ProjectSkillOut,
     ProjectSkillsUpdate,
@@ -20,7 +22,7 @@ from app.skills.schemas import (
     SkillOut,
     SkillUpdate,
 )
-from app.tasks.models import StageKey
+from app.projects.models import Project
 from app.users.models import User
 
 router = APIRouter(tags=["skills"])
@@ -39,6 +41,25 @@ def _commit_unique(db: Session) -> None:
     except IntegrityError:
         db.rollback()
         raise AppError(409, "skill_name_taken") from None
+
+
+def _sync_projects(
+    db: Session, project_ids: list[int], tools: EnvironmentTools
+) -> None:
+    for project in db.scalars(
+        select(Project).where(Project.id.in_(project_ids))
+    ):
+        sync_agent_files(db, project, tools)
+
+
+def _projects_using(db: Session, skill_id: int) -> list[int]:
+    return list(
+        db.scalars(
+            select(ProjectSkill.project_id)
+            .where(ProjectSkill.skill_id == skill_id)
+            .distinct()
+        )
+    )
 
 
 @router.get("/skills", response_model=list[SkillOut])
@@ -82,6 +103,7 @@ def update_skill(
     body: SkillUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    tools: EnvironmentTools = Depends(environment_tools),
 ):
     skill = _own(db, user, skill_id)
     if body.name is not None:
@@ -91,6 +113,7 @@ def update_skill(
     if body.content is not None:
         skill.content = body.content
     _commit_unique(db)
+    _sync_projects(db, _projects_using(db, skill.id), tools)
     return skill
 
 
@@ -99,9 +122,13 @@ def delete_skill(
     skill_id: int,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    tools: EnvironmentTools = Depends(environment_tools),
 ):
-    db.delete(_own(db, user, skill_id))
+    skill = _own(db, user, skill_id)
+    projects = _projects_using(db, skill.id)
+    db.delete(skill)
     db.commit()
+    _sync_projects(db, projects, tools)
     return Response(status_code=204)
 
 
@@ -138,10 +165,11 @@ def list_project_skills(
     response_model=list[ProjectSkillOut],
 )
 def set_stage_skills(
-    stage_key: StageKey,
+    stage_key: SkillScope,
     body: ProjectSkillsUpdate,
     access: ProjectAccess = can_edit_project,
     db: Session = Depends(get_db),
+    tools: EnvironmentTools = Depends(environment_tools),
 ):
     if len(set(body.skill_ids)) != len(body.skill_ids):
         raise AppError(400, "duplicate_skills")
@@ -172,4 +200,5 @@ def set_stage_skills(
             )
         )
     db.commit()
+    sync_agent_files(db, access.project, tools)
     return _project_skills(db, access.project.id)

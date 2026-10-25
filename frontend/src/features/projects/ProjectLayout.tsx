@@ -76,6 +76,11 @@ export function ProjectLayout() {
         <NavLink to="tasks" className={tabClass}>
           {pt.tasks.title}
         </NavLink>
+        {setup.data?.complete && (
+          <NavLink to="git" className={tabClass}>
+            {pt.git.title}
+          </NavLink>
+        )}
         <NavLink to="skills" className={tabClass}>
           {pt.skills.title}
         </NavLink>

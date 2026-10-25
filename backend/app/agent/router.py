@@ -1,18 +1,17 @@
-import shutil
+import json
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, StringConstraints
+from fastapi import APIRouter, Depends, Query, Response
+from pydantic import BaseModel, StringConstraints, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent import runner
 from app.agent.models import AgentRun, RunStatus
+from app.agent.service import ensure_idle, purge_runs, start_run
 from app.clock import utcnow
 from app.db import get_db
-from app.environments.models import EnvironmentStatus
-from app.environments.service import current
 from app.environments.tools import EnvironmentTools, environment_tools
 from app.errors import AppError
 from app.members.access import (
@@ -26,13 +25,15 @@ router = APIRouter(prefix="/projects/{project_id}/agent", tags=["agent"])
 LISTED = 20
 LOG_TAIL = 20000
 
+Kind = Literal["docs", "tasks"]
+ListedKind = Literal["docs", "tasks", "commit"]
 Prompt = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=8000)
 ]
 
 
 class RunIn(BaseModel):
-    kind: Literal["docs"]
+    kind: Kind
     prompt: Prompt
     new_conversation: bool = False
 
@@ -43,12 +44,19 @@ class RunSummary(BaseModel):
     prompt: str
     status: Literal["running", "done", "failed", "stopped"]
     summary: str | None
+    output: dict | None
+    head_commit: str | None
     resumed_from: int | None
     error_code: str | None
     created_at: datetime
     finished_at: datetime | None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("output", mode="before")
+    @classmethod
+    def parse_output(cls, value: object) -> object:
+        return json.loads(value) if isinstance(value, str) else value
 
 
 class RunOut(RunSummary):
@@ -70,68 +78,36 @@ def _out(run: AgentRun) -> RunOut:
 
 @router.get("/runs", response_model=list[RunSummary])
 def list_runs(
-    access: ProjectAccess = can_view_project, db: Session = Depends(get_db)
+    kind: ListedKind = "docs",
+    access: ProjectAccess = can_view_project,
+    db: Session = Depends(get_db),
 ):
     return db.scalars(
         select(AgentRun)
-        .where(AgentRun.project_id == access.project.id)
+        .where(
+            AgentRun.project_id == access.project.id, AgentRun.kind == kind
+        )
         .order_by(AgentRun.id.desc())
         .limit(LISTED)
     ).all()
 
 
 @router.post("/runs", response_model=RunOut, status_code=201)
-def start_run(
+def create_run(
     body: RunIn,
     access: ProjectAccess = can_edit_planning,
     db: Session = Depends(get_db),
     tools: EnvironmentTools = Depends(environment_tools),
 ):
-    project = access.project
-    environment = current(db, project.id)
-    if (
-        environment is None
-        or environment.status != EnvironmentStatus.READY.value
-        or not environment.workspace
-    ):
-        raise AppError(409, "environment_not_ready")
-    if shutil.which(tools.claude_command[0]) is None:
-        raise AppError(409, "claude_unavailable")
-    busy = db.scalar(
-        select(AgentRun.id).where(
-            AgentRun.project_id == project.id,
-            AgentRun.status == RunStatus.RUNNING.value,
-        )
+    run = start_run(
+        db,
+        access.project,
+        access.user,
+        body.kind,
+        body.prompt,
+        tools,
+        body.new_conversation,
     )
-    if busy is not None:
-        raise AppError(409, "agent_busy")
-    previous = None
-    if not body.new_conversation:
-        previous = db.scalar(
-            select(AgentRun)
-            .where(
-                AgentRun.project_id == project.id,
-                AgentRun.kind == body.kind,
-                AgentRun.status == RunStatus.DONE.value,
-                AgentRun.session_id.is_not(None),
-            )
-            .order_by(AgentRun.id.desc())
-            .limit(1)
-        )
-    run = AgentRun(
-        project_id=project.id,
-        resumed_from=previous.id if previous else None,
-        user_id=access.user.id,
-        kind=body.kind,
-        prompt=body.prompt,
-        status=RunStatus.RUNNING.value,
-    )
-    db.add(run)
-    db.commit()
-    bind = db.get_bind()
-    run_id = run.id
-    tools.jobs.submit(lambda: runner.execute(bind, run_id, tools))
-    db.refresh(run)
     return _out(run)
 
 
@@ -159,3 +135,15 @@ def stop_run(
         if process is not None:
             runner.kill(process)
     return _out(run)
+
+
+@router.delete("/runs", status_code=204)
+def clear_runs(
+    kind: ListedKind = "docs",
+    access: ProjectAccess = can_edit_planning,
+    db: Session = Depends(get_db),
+    tools: EnvironmentTools = Depends(environment_tools),
+):
+    ensure_idle(db, access.project.id)
+    purge_runs(db, access.project.id, tools.claude_home, kind)
+    return Response(status_code=204)

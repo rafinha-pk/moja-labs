@@ -46,9 +46,11 @@ def _usable(environment: ProjectEnvironment | None) -> bool:
     )
 
 
-def _url(environment: ProjectEnvironment | None) -> str | None:
+def _url(
+    environment: ProjectEnvironment | None, tools: EnvironmentTools
+) -> str | None:
     return (
-        f"http://localhost:{environment.port}"
+        f"http://{tools.public_host}:{environment.port}"
         if _usable(environment)
         else None
     )
@@ -63,7 +65,7 @@ def _out(db: Session, project: Project, tools: EnvironmentTools) -> RunOut:
         command=project.run_command,
         running=running,
         ready=ready,
-        url=_url(environment),
+        url=_url(environment, tools),
         log=log,
     )
 
@@ -117,11 +119,9 @@ def start_project(
         runner.start(tools.docker, environment.container, project.run_command)
     except DockerError:
         raise AppError(502, "docker_unavailable") from None
-    url = _url(environment)
-    if project.access_url is None or project.access_url.startswith(
-        "http://localhost:"
-    ):
-        project.access_url = url
+    own_hosts = (f"http://{tools.public_host}:", "http://localhost:")
+    if project.access_url is None or project.access_url.startswith(own_hosts):
+        project.access_url = _url(environment, tools)
     db.commit()
     return _out(db, project, tools)
 

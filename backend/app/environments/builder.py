@@ -147,7 +147,7 @@ class _Job:
             "-w",
             "/workspace",
             "-p",
-            f"127.0.0.1:{self.port}:{self.port}",
+            f"{self.tools.bind_address}:{self.port}:{self.port}",
             "-e",
             f"PORT={self.port}",
             self.image,

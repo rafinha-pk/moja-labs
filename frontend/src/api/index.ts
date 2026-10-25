@@ -11,7 +11,11 @@ import type {
   ProjectSkill,
   Environment,
   RunState,
+  AgentKind,
   AgentRun,
+  PlanState,
+  TaskSettings,
+  TaskStatus,
   AgentRunSummary,
   Changes,
   DocumentContent,
@@ -19,8 +23,7 @@ import type {
   Setup,
   SkillDetail,
   Skill,
-  StageKey,
-  StageStatus,
+  SkillScope,
   Task,
   ProjectType,
   ThemeName,
@@ -166,21 +169,32 @@ export const tasksApi = {
   update: (
     projectId: number,
     taskId: number,
-    data: { title?: string; description?: string | null },
+    data: {
+      title?: string;
+      description?: string | null;
+      status?: TaskStatus;
+      model?: string | null;
+      effort?: string | null;
+      thinking?: boolean | null;
+    },
   ) => request<Task>('PATCH', `/projects/${projectId}/tasks/${taskId}`, data),
   remove: (projectId: number, taskId: number) =>
     request<void>('DELETE', `/projects/${projectId}/tasks/${taskId}`),
-  setStage: (
+  settings: (projectId: number) =>
+    request<TaskSettings>('GET', `/projects/${projectId}/tasks/settings`),
+  saveSettings: (
     projectId: number,
-    taskId: number,
-    key: StageKey,
-    status: StageStatus,
+    data: { model: string; effort: string; thinking: boolean },
   ) =>
-    request<Task>(
-      'PATCH',
-      `/projects/${projectId}/tasks/${taskId}/stages/${key}`,
-      { status },
-    ),
+    request<TaskSettings>('PUT', `/projects/${projectId}/tasks/settings`, data),
+  plan: (projectId: number) =>
+    request<PlanState>('GET', `/projects/${projectId}/tasks/plan`),
+  search: (projectId: number) =>
+    request<AgentRun>('POST', `/projects/${projectId}/tasks/plan/search`),
+  apply: (projectId: number, runId: number) =>
+    request<Task[]>('POST', `/projects/${projectId}/tasks/plan/apply`, {
+      run_id: runId,
+    }),
 };
 
 export const skillsApi = {
@@ -195,7 +209,7 @@ export const skillsApi = {
   remove: (id: number) => request<void>('DELETE', `/skills/${id}`),
   forProject: (projectId: number) =>
     request<ProjectSkill[]>('GET', `/projects/${projectId}/skills`),
-  setForStage: (projectId: number, key: StageKey, skillIds: number[]) =>
+  setForStage: (projectId: number, key: SkillScope, skillIds: number[]) =>
     request<ProjectSkill[]>('PUT', `/projects/${projectId}/skills/${key}`, {
       skill_ids: skillIds,
     }),
@@ -235,13 +249,21 @@ export const documentsApi = {
 };
 
 export const agentApi = {
-  runs: (projectId: number) =>
-    request<AgentRunSummary[]>('GET', `/projects/${projectId}/agent/runs`),
+  runs: (projectId: number, kind: AgentKind = 'docs') =>
+    request<AgentRunSummary[]>(
+      'GET',
+      `/projects/${projectId}/agent/runs?kind=${kind}`,
+    ),
   run: (projectId: number, runId: number) =>
     request<AgentRun>('GET', `/projects/${projectId}/agent/runs/${runId}`),
-  start: (projectId: number, prompt: string, newConversation: boolean) =>
+  start: (
+    projectId: number,
+    prompt: string,
+    newConversation: boolean,
+    kind: AgentKind = 'docs',
+  ) =>
     request<AgentRun>('POST', `/projects/${projectId}/agent/runs`, {
-      kind: 'docs',
+      kind,
       prompt,
       new_conversation: newConversation,
     }),
@@ -250,6 +272,8 @@ export const agentApi = {
       'POST',
       `/projects/${projectId}/agent/runs/${runId}/stop`,
     ),
+  clear: (projectId: number, kind: AgentKind = 'docs') =>
+    request<void>('DELETE', `/projects/${projectId}/agent/runs?kind=${kind}`),
 };
 
 export const changesApi = {
@@ -261,4 +285,6 @@ export const changesApi = {
     }),
   push: (projectId: number) =>
     request<Changes>('POST', `/projects/${projectId}/changes/push`),
+  suggest: (projectId: number) =>
+    request<AgentRun>('POST', `/projects/${projectId}/changes/suggest`),
 };

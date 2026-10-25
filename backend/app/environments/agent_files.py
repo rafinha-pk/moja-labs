@@ -6,6 +6,8 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.environments.models import EnvironmentStatus, ProjectEnvironment
+from app.environments.tools import EnvironmentTools
 from app.projects.models import Project
 from app.skills.models import ProjectSkill, Skill
 
@@ -54,7 +56,16 @@ def claude_md(
         "Use git for version control and work on a branch per task.",
     ]
     if links:
-        lines += ["", "## Skills by stage", ""]
+        lines += [
+            "",
+            "## Skills by stage",
+            "",
+            "Use the skills listed for the current stage (invoke them with "
+            "the Skill tool). Stages: `docs` (documentation), `planning` "
+            "(searching and refining tasks) and `execution` (running a "
+            "task).",
+            "",
+        ]
         for stage in dict.fromkeys(link.stage_key for link, _ in links):
             names = ", ".join(
                 f"`{skill_slug(skill)}`"
@@ -90,6 +101,30 @@ def write_agent_files(
         target = skills_dir / skill_slug(skill)
         target.mkdir(parents=True)
         (target / "SKILL.md").write_text(skill_md(skill), encoding="utf-8")
+
+
+def sync_agent_files(
+    db: Session, project: Project, tools: EnvironmentTools
+) -> None:
+    environment = db.scalar(
+        select(ProjectEnvironment).where(
+            ProjectEnvironment.project_id == project.id
+        )
+    )
+    if (
+        environment is None
+        or environment.status != EnvironmentStatus.READY.value
+        or not environment.workspace
+        or not environment.container
+    ):
+        return
+    write_agent_files(
+        db,
+        project,
+        Path(environment.workspace),
+        environment.container,
+        " ".join(tools.docker.command),
+    )
 
 
 def exclude_locally(workspace: Path) -> None:

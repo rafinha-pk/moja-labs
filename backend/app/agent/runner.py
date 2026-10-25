@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 import subprocess
 import threading
 from pathlib import Path
@@ -18,9 +19,9 @@ PROCESSES: dict[int, subprocess.Popen] = {}
 
 
 def build_command(
-    tools: EnvironmentTools, kind_name: str, resume: str | None = None
+    run: AgentRun, tools: EnvironmentTools, resume: str | None = None
 ) -> list[str]:
-    kind = KINDS[kind_name]
+    kind = KINDS[run.kind]
     command = [
         *tools.claude_command,
         "-p",
@@ -28,9 +29,9 @@ def build_command(
         "stream-json",
         "--verbose",
         "--model",
-        tools.agent_model,
+        run.model,
         "--effort",
-        tools.agent_effort,
+        run.effort,
         "--permission-mode",
         "default",
         "--tools",
@@ -42,9 +43,20 @@ def build_command(
         "--setting-sources",
         "project,local",
     ]
+    if kind.schema:
+        command += ["--json-schema", kind.schema]
     if resume:
         command += ["--resume", resume]
     return command
+
+
+def agent_env(run: AgentRun) -> dict[str, str]:
+    env = dict(os.environ)
+    if run.thinking:
+        env.pop("MAX_THINKING_TOKENS", None)
+    else:
+        env["MAX_THINKING_TOKENS"] = "0"
+    return env
 
 
 def kill(process: subprocess.Popen) -> None:
@@ -54,7 +66,10 @@ def kill(process: subprocess.Popen) -> None:
             capture_output=True,
         )
     else:
-        process.kill()
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
 
 def describe(event: dict, workspace: Path) -> str:
@@ -86,7 +101,7 @@ def _stream(
     resume: str | None,
 ) -> tuple[dict, int, bool]:
     process = subprocess.Popen(
-        build_command(tools, run.kind, resume),
+        build_command(run, tools, resume),
         cwd=workspace,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -94,7 +109,8 @@ def _stream(
         text=True,
         encoding="utf-8",
         errors="replace",
-        env={**os.environ, "MAX_THINKING_TOKENS": "0"},
+        env=agent_env(run),
+        start_new_session=os.name != "nt",
     )
     PROCESSES[run.id] = process
     timed_out = threading.Event()
@@ -136,9 +152,16 @@ def _finish(
     run: AgentRun, result: dict, returncode: int, timed_out: bool
 ) -> None:
     run.summary = result.get("result")
+    structured = result.get("structured_output")
+    if KINDS[run.kind].schema and isinstance(structured, dict):
+        run.output = json.dumps(structured, ensure_ascii=False)
+        run.summary = str(structured.get("message") or "")
     if timed_out:
         run.status = RunStatus.FAILED.value
         run.error_code = "timeout"
+    elif KINDS[run.kind].schema and run.output is None:
+        run.status = RunStatus.FAILED.value
+        run.error_code = "invalid_output"
     elif result and not result.get("is_error") and returncode == 0:
         run.status = RunStatus.DONE.value
     else:

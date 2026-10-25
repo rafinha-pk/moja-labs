@@ -2,7 +2,8 @@ export type Role = 'owner' | 'po' | 'dev';
 export type AssignableRole = Exclude<Role, 'owner'>;
 export type ProjectType = 'web' | 'youtube' | 'mobile';
 export type StageKey = 'modeling' | 'coding' | 'testing' | 'deploy';
-export type StageStatus = 'todo' | 'doing' | 'done' | 'skipped';
+export type SkillScope = StageKey | 'docs' | 'planning' | 'execution';
+export type TaskStatus = 'todo' | 'doing' | 'done' | 'failed';
 export type ThemeName = 'dev-dark' | 'dev-light';
 
 export interface User {
@@ -89,19 +90,45 @@ export interface ProjectGithub {
   repository: Repository | null;
 }
 
-export interface TaskStage {
-  key: StageKey;
-  status: StageStatus;
-}
-
 export interface Task {
   id: number;
   title: string;
   description: string | null;
-  status: StageStatus;
-  stages: TaskStage[];
+  status: TaskStatus;
+  position: number;
+  source: 'manual' | 'ai';
+  model: string | null;
+  effort: string | null;
+  thinking: boolean | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface TaskSettings {
+  model: string;
+  effort: string;
+  thinking: boolean;
+  models: string[];
+  efforts: string[];
+}
+
+export interface PlanState {
+  head: string | null;
+  base: string | null;
+  uncommitted: boolean;
+  changed_files: string[];
+  can_search: boolean;
+  reason: string | null;
+}
+
+export interface PlannedTask {
+  title: string;
+  description: string;
+}
+
+export interface PlanOutput {
+  message: string;
+  tasks: PlannedTask[];
 }
 
 export interface SetupStep {
@@ -126,7 +153,7 @@ export interface SkillDetail extends Skill {
 }
 
 export interface ProjectSkill {
-  stage_key: StageKey;
+  stage_key: SkillScope;
   skill_id: number;
   name: string;
   description: string | null;
@@ -157,6 +184,8 @@ export interface DocumentContent {
   content: string;
 }
 
+export type AgentKind = 'docs' | 'tasks' | 'commit';
+
 export type AgentStatus = 'running' | 'done' | 'failed' | 'stopped';
 
 export interface AgentRunSummary {
@@ -165,6 +194,8 @@ export interface AgentRunSummary {
   prompt: string;
   status: AgentStatus;
   summary: string | null;
+  output: PlanOutput | null;
+  head_commit: string | null;
   resumed_from: number | null;
   error_code: string | null;
   created_at: string;
@@ -185,11 +216,20 @@ export interface CommitInfo {
   subject: string;
 }
 
+export interface HistoryEntry {
+  hash: string;
+  author: string;
+  when: string;
+  subject: string;
+  pushed: boolean;
+}
+
 export interface Changes {
   branch: string;
   files: FileChange[];
   diff: string;
   unpushed: CommitInfo[];
+  commits: HistoryEntry[];
 }
 
 export interface RunState {

@@ -5,7 +5,7 @@ from app.github.models import GithubCredential, ProjectRepository
 from app.members.models import ProjectInvite, ProjectMember
 from app.projects.models import Project
 from app.skills.models import ProjectSkill, Skill
-from app.tasks.models import Task, TaskStage
+from app.tasks.models import Task
 from app.users.models import User
 
 __all__ = [
@@ -20,6 +20,5 @@ __all__ = [
     "ProjectSkill",
     "Skill",
     "Task",
-    "TaskStage",
     "User",
 ]

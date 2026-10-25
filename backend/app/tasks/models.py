@@ -1,28 +1,23 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.clock import utcnow
 from app.db import Base
 
 
-class StageKey(StrEnum):
-    MODELING = "modeling"
-    CODING = "coding"
-    TESTING = "testing"
-    DEPLOY = "deploy"
-
-
-class StageStatus(StrEnum):
+class TaskStatus(StrEnum):
     TODO = "todo"
     DOING = "doing"
     DONE = "done"
-    SKIPPED = "skipped"
+    FAILED = "failed"
 
 
-OPEN_STATUSES = (StageStatus.TODO.value, StageStatus.DOING.value)
+class TaskSource(StrEnum):
+    MANUAL = "manual"
+    AI = "ai"
 
 
 class Task(Base):
@@ -34,27 +29,17 @@ class Task(Base):
     )
     title: Mapped[str] = mapped_column(String(150))
     description: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(
-        default=utcnow, onupdate=utcnow
-    )
-
-
-class TaskStage(Base):
-    __tablename__ = "task_stages"
-    __table_args__ = (
-        UniqueConstraint("task_id", "key", name="uq_task_stages_task_key"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    task_id: Mapped[int] = mapped_column(
-        ForeignKey("tasks.id", ondelete="CASCADE")
-    )
-    key: Mapped[str] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(
-        String(20), default=StageStatus.TODO.value
+        String(10), default=TaskStatus.TODO.value
     )
     position: Mapped[int]
+    source: Mapped[str] = mapped_column(
+        String(10), default=TaskSource.MANUAL.value
+    )
+    model: Mapped[str | None] = mapped_column(String(40))
+    effort: Mapped[str | None] = mapped_column(String(10))
+    thinking: Mapped[bool | None] = mapped_column(Boolean)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=utcnow, onupdate=utcnow
     )

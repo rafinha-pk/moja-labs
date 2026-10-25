@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.clock import utcnow
@@ -23,6 +23,12 @@ class Project(Base):
     type: Mapped[str] = mapped_column(String(20))
     access_url: Mapped[str | None] = mapped_column(String(300))
     run_command: Mapped[str | None] = mapped_column(Text)
+    tasks_base_commit: Mapped[str | None] = mapped_column(String(40))
+    tasks_model: Mapped[str] = mapped_column(
+        String(40), default="claude-sonnet-5-5"
+    )
+    tasks_effort: Mapped[str] = mapped_column(String(10), default="medium")
+    tasks_thinking: Mapped[bool] = mapped_column(Boolean, default=False)
     owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), index=True
     )

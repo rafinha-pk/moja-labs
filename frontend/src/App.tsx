@@ -7,6 +7,7 @@ import { AdminUsersPage } from './features/admin/AdminUsersPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
 import { InvitesPage } from './features/invites/InvitesPage';
 import { NotFoundPage } from './features/NotFoundPage';
+import { GitTab } from './features/projects/GitTab';
 import { MembersTab } from './features/projects/MembersTab';
 import { OverviewTab } from './features/projects/OverviewTab';
 import { ProjectLayout } from './features/projects/ProjectLayout';
@@ -57,6 +58,7 @@ export function App() {
             />
             <Route path="run" element={<RunTab />} />
             <Route path="tasks" element={<TasksTab />} />
+            <Route path="git" element={<GitTab />} />
             <Route path="skills" element={<SkillsTab />} />
             <Route path="members" element={<MembersTab />} />
           </Route>

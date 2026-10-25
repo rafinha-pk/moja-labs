@@ -30,6 +30,7 @@ class Docker:
         full_env = os.environ.copy()
         if env:
             full_env.update(env)
+        if env and os.name == "nt":
             forwarded = ":".join(env)
             current = full_env.get("WSLENV")
             full_env["WSLENV"] = (
