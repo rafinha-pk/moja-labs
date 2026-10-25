@@ -180,6 +180,14 @@ export const tasksApi = {
   ) => request<Task>('PATCH', `/projects/${projectId}/tasks/${taskId}`, data),
   remove: (projectId: number, taskId: number) =>
     request<void>('DELETE', `/projects/${projectId}/tasks/${taskId}`),
+  execute: (projectId: number, taskId: number) =>
+    request<Task>('POST', `/projects/${projectId}/tasks/${taskId}/execute`),
+  executeAll: (projectId: number) =>
+    request<Task[]>('POST', `/projects/${projectId}/tasks/execute-all`),
+  stopExecution: (projectId: number) =>
+    request<Task[]>('POST', `/projects/${projectId}/tasks/stop`),
+  run: (projectId: number, taskId: number) =>
+    request<AgentRun>('GET', `/projects/${projectId}/tasks/${taskId}/run`),
   settings: (projectId: number) =>
     request<TaskSettings>('GET', `/projects/${projectId}/tasks/settings`),
   saveSettings: (

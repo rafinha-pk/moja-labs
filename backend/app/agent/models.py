@@ -17,7 +17,9 @@ class RunStatus(StrEnum):
 
 class AgentRun(Base):
     __tablename__ = "agent_runs"
-    __table_args__ = (Index("ix_agent_runs_project_id_id", "project_id", "id"),)
+    __table_args__ = (
+        Index("ix_agent_runs_project_id_id", "project_id", "id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     project_id: Mapped[int] = mapped_column(
@@ -34,6 +36,9 @@ class AgentRun(Base):
     error_code: Mapped[str | None] = mapped_column(String(40))
     session_id: Mapped[str | None] = mapped_column(String(64))
     resumed_from: Mapped[int | None]
+    task_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL"), index=True
+    )
     model: Mapped[str] = mapped_column(String(40))
     effort: Mapped[str] = mapped_column(String(10))
     thinking: Mapped[bool] = mapped_column(Boolean, default=False)

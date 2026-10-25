@@ -8,6 +8,7 @@ class Kind:
     allowed: tuple[str, ...]
     system: str
     schema: str | None = None
+    shell: bool = False
 
 
 TASKS_SCHEMA = json.dumps(
@@ -98,6 +99,26 @@ KINDS = {
             "deserves them. Match the language and style of the recent "
             "commits you receive. Answer through the structured output: "
             "`message` is the full commit message."
+        ),
+    ),
+    "task": Kind(
+        tools="Read,Write,Edit,Glob,Grep,Skill,Bash",
+        allowed=("Read", "Glob", "Grep", "Skill", "Write", "Edit"),
+        shell=True,
+        system=(
+            "You implement one task of this software project, working "
+            "directly in the project folder. You may read and write any "
+            "file of the project, including docs/. You have no general "
+            "shell: run every command that executes project code "
+            "(install, build, test, start) through the docker exec prefix "
+            "given in CLAUDE.md, using relative paths (the container "
+            "already starts in /workspace and the host shell rewrites "
+            "absolute paths). Never use git to commit or push: the user "
+            "reviews and commits in Moja Labs. If CLAUDE.md lists skills "
+            "for the execution stage, use them. Prefer small, working "
+            "changes, run the project's tests when they exist and finish "
+            "with a short summary, in the user's language, of what "
+            "changed, what you ran to check it and anything left."
         ),
     ),
 }

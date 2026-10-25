@@ -375,11 +375,29 @@ export const pt = {
     fromAi: 'IA',
     statuses: {
       todo: 'A fazer',
+      queued: 'Na fila',
       doing: 'Em andamento',
       done: 'Concluída',
       failed: 'Falhou',
     },
     statusLabel: 'Situação',
+    run: {
+      execute: 'Executar',
+      again: 'Executar de novo',
+      all: 'Executar tudo',
+      stop: 'Parar',
+      result: 'Resultado da execução',
+      running: 'Executando…',
+      summary: 'Resposta da IA',
+      log: 'Andamento',
+      errors: {
+        timeout: 'Passou do tempo limite.',
+        agent_failed: 'O Claude Code terminou com erro. Veja o andamento.',
+        claude_unavailable: 'O Claude Code não foi encontrado.',
+        interrupted: 'O servidor reiniciou durante a execução.',
+        unexpected_error: 'Erro inesperado. Veja o andamento.',
+      } as Record<string, string>,
+    },
     options: {
       title: 'Modelo da IA',
       hint: 'Valem para a busca de tarefas e para a execução. Cada tarefa pode escolher outro modelo.',
@@ -588,6 +606,8 @@ export const pt = {
     no_commits: 'O repositório ainda não tem nenhum commit.',
     no_plan_conversation: 'Busque as tarefas antes de conversar sobre elas.',
     plan_not_ready: 'Essa proposta de tarefas não está pronta para ser criada.',
+    task_busy: 'Há uma tarefa em execução ou na fila.',
+    nothing_to_execute: 'Não há tarefas a fazer para executar.',
     environment_busy: 'O ambiente já está sendo construído.',
     initial_commit_pending:
       'Envie a estrutura inicial antes de criar o ambiente.',

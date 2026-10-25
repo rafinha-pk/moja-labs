@@ -201,4 +201,4 @@ def apply_plan(
         project.tasks_base_commit = run.head_commit
     db.commit()
     purge_runs(db, project.id, tools.claude_home, "tasks")
-    return created
+    return service.tasks_out(db, created)

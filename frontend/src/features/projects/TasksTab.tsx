@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { setupApi, tasksApi } from '../../api';
 import type { Task, TaskSettings, TaskStatus } from '../../api/types';
@@ -11,6 +11,7 @@ import { Card, ListRow } from '../../components/Card';
 import { ErrorAlert, fieldError } from '../../components/ErrorAlert';
 import { TextArea, TextField } from '../../components/Field';
 import { Loading } from '../../components/Loading';
+import { Markdown } from '../../components/Markdown';
 import { ConfirmDialog, Modal } from '../../components/Modal';
 import { Progress } from '../../components/Progress';
 import { pt } from '../../i18n/pt';
@@ -18,7 +19,12 @@ import { ModelSelects } from '../tasks/ModelSelects';
 import { PlannerPanel } from '../tasks/PlannerPanel';
 import { useProject } from './ProjectLayout';
 
-const STATUSES: TaskStatus[] = ['todo', 'doing', 'done', 'failed'];
+const STATUSES: TaskStatus[] = ['todo', 'queued', 'doing', 'done', 'failed'];
+const POLL_MS = 3000;
+
+function isBusy(task: Task): boolean {
+  return task.status === 'queued' || task.status === 'doing';
+}
 
 function TaskDialog({
   projectId,
@@ -148,22 +154,81 @@ function SettingsCard({
   );
 }
 
+function TaskResult({ projectId, task }: { projectId: number; task: Task }) {
+  const text = pt.tasks.run;
+  const load = useCallback(
+    () => tasksApi.run(projectId, task.id),
+    [projectId, task.id, task.status, task.run_id],
+  );
+  const { data, error, reload } = useRequest(load);
+  const working = task.status === 'doing';
+
+  useEffect(() => {
+    if (!working) return;
+    const timer = setInterval(reload, POLL_MS);
+    return () => clearInterval(timer);
+  }, [working, reload]);
+  if (error) return <ErrorAlert error={error} />;
+  if (!data) return <Loading />;
+  return (
+    <div className="mt-2 flex flex-col gap-3">
+      {data.error_code && (
+        <p className="text-sm text-danger">
+          {text.errors[data.error_code] ?? pt.errors.unknown}
+        </p>
+      )}
+      {data.summary && (
+        <div>
+          <p className="mb-1 text-xs font-semibold text-muted">
+            {text.summary}
+          </p>
+          <div className="rounded-md border border-line p-3">
+            <Markdown source={data.summary} />
+          </div>
+        </div>
+      )}
+      {data.log && (
+        <div>
+          <p className="mb-1 text-xs font-semibold text-muted">{text.log}</p>
+          <pre className="max-h-64 overflow-auto rounded-md border border-line bg-inset p-3 font-mono text-xs whitespace-pre-wrap">
+            {data.log}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TaskRow({
   task,
   settings,
+  projectId,
   busy,
+  running,
+  canRun,
   onChange,
   onEdit,
   onRemove,
+  onExecute,
 }: {
   task: Task;
   settings: TaskSettings;
+  projectId: number;
   busy: boolean;
+  running: boolean;
+  canRun: boolean;
   onChange: (patch: Parameters<typeof tasksApi.update>[2]) => void;
   onEdit: () => void;
   onRemove: () => void;
+  onExecute: () => void;
 }) {
   const custom = task.model || task.effort || task.thinking !== null;
+  const [showResult, setShowResult] = useState(false);
+  const working = isBusy(task);
+
+  useEffect(() => {
+    if (task.status === 'doing') setShowResult(true);
+  }, [task.status]);
   return (
     <ListRow className="flex-col items-stretch">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -182,7 +247,7 @@ function TaskRow({
           <select
             aria-label={pt.tasks.statusLabel}
             value={task.status}
-            disabled={busy}
+            disabled={busy || working}
             onChange={(event) =>
               onChange({ status: event.target.value as TaskStatus })
             }
@@ -194,10 +259,22 @@ function TaskRow({
               </option>
             ))}
           </select>
-          <Button small variant="invisible" onClick={onEdit}>
+          {canRun && (
+            <Button
+              small
+              variant="primary"
+              disabled={busy || running}
+              onClick={onExecute}
+            >
+              {task.status === 'todo'
+                ? pt.tasks.run.execute
+                : pt.tasks.run.again}
+            </Button>
+          )}
+          <Button small variant="invisible" disabled={working} onClick={onEdit}>
             {pt.tasks.edit}
           </Button>
-          <Button small variant="danger" onClick={onRemove}>
+          <Button small variant="danger" disabled={working} onClick={onRemove}>
             {pt.common.delete}
           </Button>
         </div>
@@ -220,6 +297,18 @@ function TaskRow({
           />
         </div>
       </details>
+      {task.run_id !== null && (
+        <details
+          className="mt-2"
+          open={showResult}
+          onToggle={(event) => setShowResult(event.currentTarget.open)}
+        >
+          <summary className="cursor-pointer text-xs text-muted">
+            {working ? pt.tasks.run.running : pt.tasks.run.result}
+          </summary>
+          {showResult && <TaskResult projectId={projectId} task={task} />}
+        </details>
+      )}
     </ListRow>
   );
 }
@@ -242,6 +331,15 @@ export function TasksTab() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [removing, setRemoving] = useState<Task | null>(null);
   const [adding, setAdding] = useState(false);
+  const canRun = project.role === 'owner' || project.role === 'dev';
+  const reloadTasks = tasks.reload;
+  const anyBusy = tasks.data?.some(isBusy) ?? false;
+
+  useEffect(() => {
+    if (!anyBusy) return;
+    const timer = setInterval(reloadTasks, POLL_MS);
+    return () => clearInterval(timer);
+  }, [anyBusy, reloadTasks]);
 
   if (setup.error || tasks.error || settings.error) {
     return <ErrorAlert error={setup.error ?? tasks.error ?? settings.error} />;
@@ -273,6 +371,24 @@ export function TasksTab() {
       setDescription('');
       setAdding(false);
     }
+  };
+
+  const runAll = async () => {
+    const result = await action.run(() => tasksApi.executeAll(project.id));
+    if (result) tasks.setData(result.value);
+  };
+
+  const stopAll = async () => {
+    const result = await action.run(() => tasksApi.stopExecution(project.id));
+    if (result) tasks.setData(result.value);
+  };
+
+  const executeOne = async (task: Task) => {
+    const result = await action.run(() =>
+      tasksApi.execute(project.id, task.id),
+    );
+    if (result) replace(result.value);
+    tasks.reload();
   };
 
   const remove = async () => {
@@ -308,9 +424,29 @@ export function TasksTab() {
         <Card
           title={pt.tasks.title}
           action={
-            <Button small onClick={() => setAdding((value) => !value)}>
-              {pt.tasks.newButton}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {canRun &&
+                (anyBusy ? (
+                  <Button small variant="danger" onClick={stopAll}>
+                    {pt.tasks.run.stop}
+                  </Button>
+                ) : (
+                  <Button
+                    small
+                    variant="primary"
+                    disabled={
+                      action.pending ||
+                      !list.some((task) => task.status === 'todo')
+                    }
+                    onClick={runAll}
+                  >
+                    {pt.tasks.run.all}
+                  </Button>
+                ))}
+              <Button small onClick={() => setAdding((value) => !value)}>
+                {pt.tasks.newButton}
+              </Button>
+            </div>
           }
         >
           <div className="flex flex-col gap-2 border-b border-line-muted px-4 py-3">
@@ -331,7 +467,11 @@ export function TasksTab() {
                   key={task.id}
                   task={task}
                   settings={settings.data!}
+                  projectId={project.id}
                   busy={action.pending}
+                  running={anyBusy}
+                  canRun={canRun}
+                  onExecute={() => executeOne(task)}
                   onChange={(patch) => change(task, patch)}
                   onEdit={() => setEditing(task)}
                   onRemove={() => setRemoving(task)}

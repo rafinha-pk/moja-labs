@@ -57,6 +57,7 @@ class TaskOut(BaseModel):
     model: str | None
     effort: str | None
     thinking: bool | None
+    run_id: int | None = None
     created_at: datetime
     updated_at: datetime
 

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
+from app.agent.service import purge_task_runs
 from app.db import get_db
+from app.environments.tools import EnvironmentTools, environment_tools
 from app.errors import AppError
 from app.members.access import (
     ProjectAccess,
@@ -10,7 +12,7 @@ from app.members.access import (
 )
 from app.setup.service import setup_complete
 from app.tasks import service
-from app.tasks.models import Task
+from app.tasks.models import Task, TaskStatus
 from app.tasks.schemas import TaskCreate, TaskOut, TaskUpdate
 
 router = APIRouter(prefix="/projects/{project_id}/tasks", tags=["tasks"])
@@ -29,7 +31,7 @@ def _find(db: Session, project_id: int, task_id: int) -> Task:
 def list_tasks(
     access: ProjectAccess = can_view_project, db: Session = Depends(get_db)
 ):
-    return service.project_tasks(db, access.project.id)
+    return service.tasks_out(db, service.project_tasks(db, access.project.id))
 
 
 @router.post("", response_model=TaskOut, status_code=201)
@@ -44,7 +46,7 @@ def create_task(
         db, access.project.id, body.title, body.description or None
     )
     db.commit()
-    return task
+    return service.tasks_out(db, [task])[0]
 
 
 @router.patch("/{task_id}", response_model=TaskOut)
@@ -65,7 +67,7 @@ def update_task(
         if field in body.model_fields_set:
             setattr(task, field, getattr(body, field))
     db.commit()
-    return task
+    return service.tasks_out(db, [task])[0]
 
 
 @router.delete("/{task_id}", status_code=204)
@@ -73,7 +75,12 @@ def delete_task(
     task_id: int,
     access: ProjectAccess = can_edit_planning,
     db: Session = Depends(get_db),
+    tools: EnvironmentTools = Depends(environment_tools),
 ):
-    db.delete(_find(db, access.project.id, task_id))
+    task = _find(db, access.project.id, task_id)
+    if task.status in (TaskStatus.QUEUED.value, TaskStatus.DOING.value):
+        raise AppError(409, "task_busy")
+    purge_task_runs(db, task.id, tools.claude_home)
+    db.delete(task)
     db.commit()
     return Response(status_code=204)

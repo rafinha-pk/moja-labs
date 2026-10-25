@@ -3,7 +3,7 @@ export type AssignableRole = Exclude<Role, 'owner'>;
 export type ProjectType = 'web' | 'youtube' | 'mobile';
 export type StageKey = 'modeling' | 'coding' | 'testing' | 'deploy';
 export type SkillScope = StageKey | 'docs' | 'planning' | 'execution';
-export type TaskStatus = 'todo' | 'doing' | 'done' | 'failed';
+export type TaskStatus = 'todo' | 'queued' | 'doing' | 'done' | 'failed';
 export type ThemeName = 'dev-dark' | 'dev-light';
 
 export interface User {
@@ -100,6 +100,7 @@ export interface Task {
   model: string | null;
   effort: string | null;
   thinking: boolean | null;
+  run_id: number | null;
   created_at: string;
   updated_at: string;
 }

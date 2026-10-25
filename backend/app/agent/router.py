@@ -28,7 +28,8 @@ LOG_TAIL = 20000
 Kind = Literal["docs", "tasks"]
 ListedKind = Literal["docs", "tasks", "commit"]
 Prompt = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=8000)
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=8000),
 ]
 
 
@@ -84,9 +85,7 @@ def list_runs(
 ):
     return db.scalars(
         select(AgentRun)
-        .where(
-            AgentRun.project_id == access.project.id, AgentRun.kind == kind
-        )
+        .where(AgentRun.project_id == access.project.id, AgentRun.kind == kind)
         .order_by(AgentRun.id.desc())
         .limit(LISTED)
     ).all()

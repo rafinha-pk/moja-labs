@@ -13,15 +13,28 @@ from app.agent.models import AgentRun, RunStatus
 from app.clock import utcnow
 from app.environments.service import current
 from app.environments.tools import EnvironmentTools
+from app.tasks.models import Task, TaskStatus
 
 LOG_LIMIT = 20000
 PROCESSES: dict[int, subprocess.Popen] = {}
 
 
 def build_command(
-    run: AgentRun, tools: EnvironmentTools, resume: str | None = None
+    run: AgentRun,
+    tools: EnvironmentTools,
+    resume: str | None = None,
+    container: str | None = None,
 ) -> list[str]:
     kind = KINDS[run.kind]
+    allowed = list(kind.allowed)
+    denied: list[str] = []
+    if kind.shell and container:
+        prefix = f"{' '.join(tools.docker.command)} exec {container}"
+        allowed.append(f"Bash({prefix}:*)")
+        denied += [
+            f"Bash({prefix} git commit:*)",
+            f"Bash({prefix} git push:*)",
+        ]
     command = [
         *tools.claude_command,
         "-p",
@@ -37,12 +50,14 @@ def build_command(
         "--tools",
         kind.tools,
         "--allowedTools",
-        *kind.allowed,
+        *allowed,
         "--append-system-prompt",
         kind.system,
         "--setting-sources",
         "project,local",
     ]
+    if denied:
+        command += ["--disallowedTools", *denied]
     if kind.schema:
         command += ["--json-schema", kind.schema]
     if resume:
@@ -99,9 +114,10 @@ def _stream(
     workspace: Path,
     tools: EnvironmentTools,
     resume: str | None,
+    container: str | None,
 ) -> tuple[dict, int, bool]:
     process = subprocess.Popen(
-        build_command(run, tools, resume),
+        build_command(run, tools, resume, container),
         cwd=workspace,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -169,15 +185,35 @@ def _finish(
         run.error_code = "agent_failed"
 
 
+_TASK_AFTER_RUN = {
+    RunStatus.DONE.value: TaskStatus.DONE.value,
+    RunStatus.FAILED.value: TaskStatus.FAILED.value,
+    RunStatus.STOPPED.value: TaskStatus.TODO.value,
+}
+
+
+def _settle_task(db: Session, run: AgentRun) -> None:
+    task = db.get(Task, run.task_id) if run.task_id else None
+    if task is not None and task.status == TaskStatus.DOING.value:
+        task.status = _TASK_AFTER_RUN.get(run.status, TaskStatus.FAILED.value)
+
+
 def execute(bind: Engine, run_id: int, tools: EnvironmentTools) -> None:
     with Session(bind) as db:
         run = db.get(AgentRun, run_id)
         environment = current(db, run.project_id)
-        previous = db.get(AgentRun, run.resumed_from) if run.resumed_from else None
+        previous = (
+            db.get(AgentRun, run.resumed_from) if run.resumed_from else None
+        )
         resume = previous.session_id if previous else None
         try:
             outcome = _stream(
-                db, run, Path(environment.workspace), tools, resume
+                db,
+                run,
+                Path(environment.workspace),
+                tools,
+                resume,
+                environment.container,
             )
         except FileNotFoundError:
             outcome = None
@@ -194,4 +230,5 @@ def execute(bind: Engine, run_id: int, tools: EnvironmentTools) -> None:
             _finish(run, *outcome)
         if run.finished_at is None:
             run.finished_at = utcnow()
+        _settle_task(db, run)
         db.commit()

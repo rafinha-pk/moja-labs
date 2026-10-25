@@ -10,6 +10,7 @@ from app.db import Base
 
 class TaskStatus(StrEnum):
     TODO = "todo"
+    QUEUED = "queued"
     DOING = "doing"
     DONE = "done"
     FAILED = "failed"
