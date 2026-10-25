@@ -34,6 +34,7 @@ Prompt = Annotated[
 class RunIn(BaseModel):
     kind: Literal["docs"]
     prompt: Prompt
+    new_conversation: bool = False
 
 
 class RunSummary(BaseModel):
@@ -41,8 +42,9 @@ class RunSummary(BaseModel):
     kind: str
     prompt: str
     status: Literal["running", "done", "failed", "stopped"]
+    summary: str | None
+    resumed_from: int | None
     error_code: str | None
-    cost_usd: float | None
     created_at: datetime
     finished_at: datetime | None
 
@@ -51,7 +53,6 @@ class RunSummary(BaseModel):
 
 class RunOut(RunSummary):
     log: str
-    summary: str | None
 
 
 def _run(db: Session, project_id: int, run_id: int) -> AgentRun:
@@ -104,8 +105,22 @@ def start_run(
     )
     if busy is not None:
         raise AppError(409, "agent_busy")
+    previous = None
+    if not body.new_conversation:
+        previous = db.scalar(
+            select(AgentRun)
+            .where(
+                AgentRun.project_id == project.id,
+                AgentRun.kind == body.kind,
+                AgentRun.status == RunStatus.DONE.value,
+                AgentRun.session_id.is_not(None),
+            )
+            .order_by(AgentRun.id.desc())
+            .limit(1)
+        )
     run = AgentRun(
         project_id=project.id,
+        resumed_from=previous.id if previous else None,
         user_id=access.user.id,
         kind=body.kind,
         prompt=body.prompt,

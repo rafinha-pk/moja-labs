@@ -239,10 +239,11 @@ export const agentApi = {
     request<AgentRunSummary[]>('GET', `/projects/${projectId}/agent/runs`),
   run: (projectId: number, runId: number) =>
     request<AgentRun>('GET', `/projects/${projectId}/agent/runs/${runId}`),
-  start: (projectId: number, prompt: string) =>
+  start: (projectId: number, prompt: string, newConversation: boolean) =>
     request<AgentRun>('POST', `/projects/${projectId}/agent/runs`, {
       kind: 'docs',
       prompt,
+      new_conversation: newConversation,
     }),
   stop: (projectId: number, runId: number) =>
     request<AgentRun>(

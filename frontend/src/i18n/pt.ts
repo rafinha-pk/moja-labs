@@ -262,17 +262,18 @@ export const pt = {
   },
   docs: {
     title: 'Documentação',
-    agent: {
-      title: 'Pedir à IA',
-      prompt: 'O que a IA deve fazer',
-      hint: 'Descreva o escopo ou o que ajustar. A IA lê os documentos que já existem e escreve em docs/. Ela não executa comandos nem faz commits: você revisa e aprova as alterações abaixo.',
-      send: 'Enviar para a IA',
+    chat: {
+      title: 'Assistente de documentação',
+      newConversation: 'Nova conversa',
+      placeholder: 'Peça para a IA escrever ou ajustar a documentação…',
+      hint: 'A IA só altera arquivos em docs/ e o README.md. Ela não executa comandos nem faz commits.',
+      send: 'Enviar',
       stop: 'Parar',
-      log: 'Andamento',
-      summary: 'Resposta da IA',
-      history: 'Histórico',
-      empty: 'Nenhuma solicitação ainda.',
-      cost: 'Custo',
+      empty: 'Descreva o projeto ou o que ajustar nas docs. Algumas ideias:',
+      working: 'Trabalhando…',
+      stopped: 'Interrompida.',
+      you: 'Você',
+      assistant: 'IA',
       noClaude:
         'O Claude Code não foi encontrado nesta máquina. Instale-o e entre na sua conta para usar a IA.',
       suggestions: [
@@ -287,23 +288,17 @@ export const pt = {
             'Leia toda a documentação existente, aponte inconsistências e lacunas e corrija o que for claro.',
         },
         {
-          label: 'Quebrar em tarefas',
+          label: 'Escrever o planejamento',
           prompt:
-            'A partir do escopo, escreva docs/plano.md com as entregas em ordem de implementação, cada uma com critérios de aceite.',
+            'A partir do escopo, escreva docs/planejamento.md com as entregas em ordem de implementação, cada uma com critérios de aceite.',
         },
       ],
-      status: {
-        running: 'Trabalhando',
-        done: 'Concluída',
-        failed: 'Falhou',
-        stopped: 'Interrompida',
-      },
       errors: {
         timeout: 'Passou do tempo limite.',
-        agent_failed: 'O Claude Code terminou com erro. Veja o andamento.',
+        agent_failed: 'O Claude Code terminou com erro.',
         claude_unavailable: 'O Claude Code não foi encontrado.',
         interrupted: 'O servidor reiniciou durante a execução.',
-        unexpected_error: 'Erro inesperado. Veja o andamento.',
+        unexpected_error: 'Erro inesperado.',
       },
     },
     changes: {
@@ -327,6 +322,7 @@ export const pt = {
     },
     files: {
       title: 'Documentos',
+      editorTitle: 'Editor de documentação',
       tree: 'Árvore de documentos',
       choose:
         'Escolha um documento na árvore para ler ou editar, ou crie um novo.',

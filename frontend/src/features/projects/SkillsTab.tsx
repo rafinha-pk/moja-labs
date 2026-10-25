@@ -116,7 +116,7 @@ export function SkillsTab() {
   };
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <p className="text-sm text-muted">{pt.skills.projectIntro}</p>
       {!canEdit && <Alert tone="info">{pt.skills.readOnly}</Alert>}
       {canEdit && library.data.length === 0 && (

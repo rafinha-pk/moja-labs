@@ -164,15 +164,15 @@ export interface AgentRunSummary {
   kind: string;
   prompt: string;
   status: AgentStatus;
+  summary: string | null;
+  resumed_from: number | null;
   error_code: string | null;
-  cost_usd: number | null;
   created_at: string;
   finished_at: string | null;
 }
 
 export interface AgentRun extends AgentRunSummary {
   log: string;
-  summary: string | null;
 }
 
 export interface FileChange {

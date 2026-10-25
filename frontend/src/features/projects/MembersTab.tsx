@@ -244,7 +244,7 @@ export function MembersTab() {
   const leaving = toRemove?.user_id === me.id;
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card
         title={pt.members.title}
         action={

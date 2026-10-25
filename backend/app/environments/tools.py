@@ -19,7 +19,8 @@ class EnvironmentTools:
     workspaces: Path
     claude_command: list[str]
     port_base: int
-    agent_budget_usd: float = 3.0
+    agent_model: str = "claude-sonnet-5-5"
+    agent_effort: str = "medium"
     agent_timeout_seconds: int = 1800
 
 
@@ -30,6 +31,7 @@ def environment_tools() -> EnvironmentTools:
         workspaces=settings.workspaces_dir,
         claude_command=settings.claude_command,
         port_base=settings.project_port_base,
-        agent_budget_usd=settings.agent_budget_usd,
+        agent_model=settings.agent_model,
+        agent_effort=settings.agent_effort,
         agent_timeout_seconds=settings.agent_timeout_seconds,
     )

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import Float, ForeignKey, Index, String, Text
+from sqlalchemy import ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.clock import utcnow
@@ -33,6 +33,6 @@ class AgentRun(Base):
     summary: Mapped[str | None] = mapped_column(Text)
     error_code: Mapped[str | None] = mapped_column(String(40))
     session_id: Mapped[str | None] = mapped_column(String(64))
-    cost_usd: Mapped[float | None] = mapped_column(Float)
+    resumed_from: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     finished_at: Mapped[datetime | None]

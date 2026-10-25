@@ -198,7 +198,7 @@ export function AdminUsersPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{pt.admin.title}</h1>
         <Button variant="primary" onClick={() => setCreating(true)}>

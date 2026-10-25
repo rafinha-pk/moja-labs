@@ -37,7 +37,8 @@ class Settings:
     workspaces_dir: Path
     docker_command: list[str]
     claude_command: list[str]
-    agent_budget_usd: float
+    agent_model: str
+    agent_effort: str
     agent_timeout_seconds: int
     project_port_base: int
 
@@ -68,7 +69,8 @@ def load_settings() -> Settings:
             os.environ.get("DOCKER_COMMAND") or _default_docker_command()
         ),
         claude_command=shlex.split(os.environ.get("CLAUDE_COMMAND", "claude")),
-        agent_budget_usd=float(os.environ.get("AGENT_BUDGET_USD", "3")),
+        agent_model=os.environ.get("AGENT_MODEL", "claude-sonnet-5-5"),
+        agent_effort=os.environ.get("AGENT_EFFORT", "medium"),
         agent_timeout_seconds=int(
             os.environ.get("AGENT_TIMEOUT_SECONDS", "1800")
         ),

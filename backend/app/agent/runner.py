@@ -17,25 +17,34 @@ LOG_LIMIT = 20000
 PROCESSES: dict[int, subprocess.Popen] = {}
 
 
-def build_command(tools: EnvironmentTools, kind_name: str) -> list[str]:
+def build_command(
+    tools: EnvironmentTools, kind_name: str, resume: str | None = None
+) -> list[str]:
     kind = KINDS[kind_name]
-    return [
+    command = [
         *tools.claude_command,
         "-p",
         "--output-format",
         "stream-json",
         "--verbose",
+        "--model",
+        tools.agent_model,
+        "--effort",
+        tools.agent_effort,
         "--permission-mode",
-        "acceptEdits",
+        "default",
         "--tools",
         kind.tools,
+        "--allowedTools",
+        *kind.allowed,
         "--append-system-prompt",
         kind.system,
-        "--max-budget-usd",
-        str(tools.agent_budget_usd),
         "--setting-sources",
         "project,local",
     ]
+    if resume:
+        command += ["--resume", resume]
+    return command
 
 
 def kill(process: subprocess.Popen) -> None:
@@ -70,10 +79,14 @@ def _append(db: Session, run: AgentRun, text: str) -> None:
 
 
 def _stream(
-    db: Session, run: AgentRun, workspace: Path, tools: EnvironmentTools
+    db: Session,
+    run: AgentRun,
+    workspace: Path,
+    tools: EnvironmentTools,
+    resume: str | None,
 ) -> tuple[dict, int, bool]:
     process = subprocess.Popen(
-        build_command(tools, run.kind),
+        build_command(tools, run.kind, resume),
         cwd=workspace,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -81,6 +94,7 @@ def _stream(
         text=True,
         encoding="utf-8",
         errors="replace",
+        env={**os.environ, "MAX_THINKING_TOKENS": "0"},
     )
     PROCESSES[run.id] = process
     timed_out = threading.Event()
@@ -122,7 +136,6 @@ def _finish(
     run: AgentRun, result: dict, returncode: int, timed_out: bool
 ) -> None:
     run.summary = result.get("result")
-    run.cost_usd = result.get("total_cost_usd")
     if timed_out:
         run.status = RunStatus.FAILED.value
         run.error_code = "timeout"
@@ -137,8 +150,12 @@ def execute(bind: Engine, run_id: int, tools: EnvironmentTools) -> None:
     with Session(bind) as db:
         run = db.get(AgentRun, run_id)
         environment = current(db, run.project_id)
+        previous = db.get(AgentRun, run.resumed_from) if run.resumed_from else None
+        resume = previous.session_id if previous else None
         try:
-            outcome = _stream(db, run, Path(environment.workspace), tools)
+            outcome = _stream(
+                db, run, Path(environment.workspace), tools, resume
+            )
         except FileNotFoundError:
             outcome = None
             run.status = RunStatus.FAILED.value

@@ -4,12 +4,22 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Kind:
     tools: str
+    allowed: tuple[str, ...]
     system: str
 
 
 KINDS = {
     "docs": Kind(
         tools="Read,Write,Edit,Glob,Grep",
+        allowed=(
+            "Read",
+            "Glob",
+            "Grep",
+            "Write(docs/**)",
+            "Edit(docs/**)",
+            "Write(README.md)",
+            "Edit(README.md)",
+        ),
         system=(
             "You are the documentation assistant of this project. Work only "
             "on documentation: create or update Markdown files under docs/ "

@@ -3,31 +3,32 @@
 /*
  * Themes only change token values. Components use the semantic utilities
  * below (bg-canvas, text-fg, border-line...) and never a fixed color.
- * Default is dev-dark; dev-light is selected through data-theme.
+ * Default is dev-dark (GitHub Dark High Contrast); dev-light is selected
+ * through data-theme.
  */
 :root,
 :root[data-theme='dev-dark'] {
   color-scheme: dark;
-  --bg-canvas: #0d1117;
+  --bg-canvas: #010409;
   --bg-subtle: #151b23;
-  --bg-overlay: #161b22;
+  --bg-overlay: #151b23;
   --bg-inset: #010409;
-  --border-default: #3d444d;
-  --border-muted: #30363d;
-  --fg-default: #f0f6fc;
-  --fg-muted: #9198a1;
+  --border-default: #b7bdc8;
+  --border-muted: #b7bdc8;
+  --fg-default: #ffffff;
+  --fg-muted: #b7bdc8;
   --fg-on-emphasis: #ffffff;
-  --accent-fg: #4493f8;
-  --accent-emphasis: #1f6feb;
-  --success-fg: #3fb950;
+  --accent-fg: #74b9ff;
+  --accent-emphasis: #409eff;
+  --success-fg: #26a641;
   --success-emphasis: #238636;
   --success-emphasis-hover: #2ea043;
-  --danger-fg: #f85149;
+  --danger-fg: #ff9492;
   --danger-emphasis: #da3633;
-  --warning-fg: #d29922;
-  --control-bg: #212830;
-  --control-hover: #262c36;
-  --control-border: #3d444d;
+  --warning-fg: #f0b72f;
+  --control-bg: #262c36;
+  --control-hover: #2f3742;
+  --control-border: #b7bdc8;
   --shadow-overlay: 0 8px 24px rgb(1 4 9 / 0.85);
   --selection: rgb(56 139 253 / 0.4);
   --active-line: rgb(110 118 129 / 0.1);

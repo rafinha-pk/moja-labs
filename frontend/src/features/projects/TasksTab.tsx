@@ -239,7 +239,7 @@ export function TasksTab() {
   const done = list.filter((task) => task.status === 'done').length;
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {!setup.data.complete && (
         <Alert tone="info">
           {pt.tasks.setupRequired}{' '}

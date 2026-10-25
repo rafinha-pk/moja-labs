@@ -25,7 +25,7 @@ export function useProject(): ProjectContext {
 }
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
-  `border-b-2 px-3 py-2 text-sm no-underline hover:text-fg ${
+  `border-b-2 px-3 py-2 text-sm whitespace-nowrap no-underline hover:text-fg ${
     isActive
       ? 'border-accent-emphasis font-semibold text-fg'
       : 'border-transparent text-muted'
@@ -56,7 +56,7 @@ export function ProjectLayout() {
           <Badge>{pt.roles.superadmin}</Badge>
         )}
       </div>
-      <nav className="flex border-b border-line">
+      <nav className="flex overflow-x-auto border-b border-line">
         <NavLink to="." end className={tabClass}>
           {pt.projects.overview}
         </NavLink>

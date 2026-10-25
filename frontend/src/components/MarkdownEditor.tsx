@@ -7,6 +7,7 @@ interface MarkdownEditorProps {
   value: string;
   maxLength: number;
   label: string;
+  heightClass?: string;
   onChange: (value: string) => void;
   onSave: () => void;
 }
@@ -15,6 +16,7 @@ export function MarkdownEditor({
   value,
   maxLength,
   label,
+  heightClass = 'h-[65vh]',
   onChange,
   onSave,
 }: MarkdownEditorProps) {
@@ -41,7 +43,7 @@ export function MarkdownEditor({
   return (
     <div
       ref={host}
-      className="h-[65vh] overflow-hidden rounded-md border border-line"
+      className={`${heightClass} overflow-hidden rounded-md border border-line`}
     />
   );
 }

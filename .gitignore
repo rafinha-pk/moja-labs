@@ -1,5 +1,5 @@
-.claude/
-docs/
+/.claude/
+/docs/
 
 # Python / ambiente local
 .venv/
@@ -22,4 +22,4 @@ uv.lock
 .python-version
 
 # Workspaces dos projetos criados pelo Moja Labs (locais)
-projetos/
+/projetos/

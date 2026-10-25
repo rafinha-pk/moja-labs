@@ -69,7 +69,7 @@ export function RunTab() {
   };
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card title={text.title}>
         <div className="flex flex-col gap-4 p-4">
           <div className="flex flex-wrap items-center gap-3">

@@ -10,8 +10,7 @@ import { TextField } from '../../components/Field';
 import { Loading } from '../../components/Loading';
 import { pt } from '../../i18n/pt';
 import { buildTree, documentPath } from '../../lib/documents';
-import { AgentPanel } from '../docs/AgentPanel';
-import { ChangesPanel } from '../docs/ChangesPanel';
+import { ChatPanel } from '../docs/ChatPanel';
 import { DocTree } from '../docs/DocTree';
 import { DocumentEditor } from '../docs/DocumentEditor';
 import { useProject } from './ProjectLayout';
@@ -19,7 +18,6 @@ import { useProject } from './ProjectLayout';
 export function DocsTab() {
   const { project } = useProject();
   const text = pt.docs;
-  const canCommit = project.role === 'owner' || project.role === 'dev';
   const loadDocs = useCallback(
     () => documentsApi.list(project.id),
     [project.id],
@@ -32,7 +30,6 @@ export function DocsTab() {
   const environment = useRequest(loadEnvironment);
   const [selected, setSelected] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
-  const [changesKey, setChangesKey] = useState(0);
   const [name, setName] = useState('');
 
   const entries = docs.data;
@@ -57,10 +54,7 @@ export function DocsTab() {
   if (docs.error) return <ErrorAlert error={docs.error} />;
   if (!entries) return <Loading />;
 
-  const changed = () => {
-    docs.reload();
-    setChangesKey((value) => value + 1);
-  };
+  const changed = () => docs.reload();
 
   const finished = () => {
     setVersion((value) => value + 1);
@@ -82,8 +76,8 @@ export function DocsTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
-        <Card title={text.files.title} className="self-start">
+      <div className="grid items-start gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_24rem]">
+        <Card title={text.files.title}>
           <DocTree
             nodes={tree}
             selected={selected}
@@ -109,30 +103,27 @@ export function DocsTab() {
             </Button>
           </form>
         </Card>
-        <div className="min-w-0">
-          {selected ? (
-            <DocumentEditor
-              key={`${selected}:${version}`}
-              projectId={project.id}
-              path={selected}
-              exists={current?.exists ?? false}
-              onSaved={changed}
-              onDeleted={deleted}
-            />
-          ) : (
-            <p className="text-sm text-muted">{text.files.choose}</p>
+        {selected ? (
+          <DocumentEditor
+            key={`${selected}:${version}`}
+            projectId={project.id}
+            path={selected}
+            exists={current?.exists ?? false}
+            onSaved={changed}
+            onDeleted={deleted}
+          />
+        ) : (
+          <Card title={text.files.editorTitle}>
+            <p className="p-4 text-sm text-muted">{text.files.choose}</p>
+          </Card>
+        )}
+        <div className="flex flex-col gap-4 lg:col-span-2 xl:sticky xl:top-4 xl:col-span-1">
+          {environment.data && !environment.data.claude_available && (
+            <Alert tone="info">{text.chat.noClaude}</Alert>
           )}
+          <ChatPanel projectId={project.id} onFinished={finished} />
         </div>
       </div>
-      <ChangesPanel
-        projectId={project.id}
-        canCommit={canCommit}
-        refreshKey={changesKey}
-      />
-      {environment.data && !environment.data.claude_available && (
-        <Alert tone="info">{text.agent.noClaude}</Alert>
-      )}
-      <AgentPanel projectId={project.id} onFinished={finished} />
     </div>
   );
 }

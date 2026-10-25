@@ -28,7 +28,7 @@ export function InvitesPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">{pt.invites.title}</h1>
       <ErrorAlert error={error ?? answer.error} />
       {!data && !error && <Loading />}

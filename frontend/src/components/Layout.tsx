@@ -40,8 +40,8 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="border-b border-line bg-subtle">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+      <header className="border-b border-line bg-canvas">
+        <div className="flex items-center gap-4 px-4 py-3 md:px-6">
           <NavLink
             to="/"
             className="flex items-center gap-2 font-semibold text-fg no-underline"
@@ -101,7 +101,7 @@ export function Layout() {
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="px-4 py-6 md:px-6">
         <Outlet />
       </main>
     </div>
