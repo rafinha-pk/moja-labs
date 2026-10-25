@@ -1,0 +1,25 @@
+.claude/
+docs/
+
+# Python / ambiente local
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+
+# Testes locais (nao versionados)
+backend/testes/
+frontend/testes/
+
+# uv (somente uso local)
+uv.lock
+.python-version
+
+# Workspaces dos projetos criados pelo Moja Labs (locais)
+projetos/
