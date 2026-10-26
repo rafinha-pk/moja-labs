@@ -64,14 +64,15 @@ def create_task(
 ):
     if not setup_complete(db, access.project):
         raise AppError(409, "setup_incomplete")
-    if body.area.value not in access.areas:
+    area = service.effective_area(access.project.type, body.area.value)
+    if area not in access.areas:
         raise AppError(403, "wrong_area")
     task = service.create_task(
         db,
         access.project.id,
         body.title,
         body.description or None,
-        area=body.area.value,
+        area=area,
     )
     db.commit()
     return service.tasks_out(db, [task])[0]
@@ -86,9 +87,10 @@ def update_task(
 ):
     task = find_allowed(db, access, task_id)
     if body.area is not None:
-        if body.area.value not in access.areas:
+        area = service.effective_area(access.project.type, body.area.value)
+        if area not in access.areas:
             raise AppError(403, "wrong_area")
-        task.area = body.area.value
+        task.area = area
     if body.title is not None:
         task.title = body.title
     if "description" in body.model_fields_set:

@@ -11,6 +11,7 @@ import { ErrorAlert } from '../../components/ErrorAlert';
 import { TextArea } from '../../components/Field';
 import { Loading } from '../../components/Loading';
 import { pt } from '../../i18n/pt';
+import { ApkCard } from './ApkCard';
 import { useProject } from './ProjectLayout';
 
 const POLL_MS = 2000;
@@ -101,7 +102,10 @@ export function RunTab() {
                 onChange={(event) => setDraft(event.target.value)}
               />
               <div className="flex flex-wrap gap-2">
-                {text.suggestions.map((item) => (
+                {(project.type === 'mobile'
+                  ? text.suggestionsMobile
+                  : text.suggestions
+                ).map((item) => (
                   <Button
                     key={item.label}
                     small
@@ -160,6 +164,7 @@ export function RunTab() {
           )}
         </div>
       </Card>
+      {project.type === 'mobile' && <ApkCard />}
     </div>
   );
 }

@@ -15,7 +15,7 @@ import { useProject } from './ProjectLayout';
 export function ExecutedTasksPage() {
   const { project } = useProject();
   const text = pt.tasks.executed;
-  const areas = allowedAreas(project.specialty);
+  const areas = allowedAreas(project.specialty, project.type);
   const load = useCallback(() => tasksApi.list(project.id, true), [project.id]);
   const { data, error, reload } = useRequest(load);
   const action = useAction();

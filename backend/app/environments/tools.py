@@ -22,6 +22,7 @@ class EnvironmentTools:
     claude_home: Path
     public_host: str = "localhost"
     bind_address: str = "127.0.0.1"
+    mobile_memory: str = "5g"
     agent_model: str = "claude-sonnet-5-5"
     agent_effort: str = "medium"
     agent_timeout_seconds: int = 1800
@@ -37,6 +38,7 @@ def environment_tools() -> EnvironmentTools:
         claude_home=settings.claude_home,
         public_host=settings.project_public_host,
         bind_address=settings.project_bind_address,
+        mobile_memory=settings.mobile_memory,
         agent_model=settings.agent_model,
         agent_effort=settings.agent_effort,
         agent_timeout_seconds=settings.agent_timeout_seconds,

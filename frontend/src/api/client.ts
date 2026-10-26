@@ -125,12 +125,12 @@ export async function restoreSession(): Promise<boolean> {
   return refreshOnce();
 }
 
-export async function request<T>(
+async function authorized(
   method: string,
   path: string,
-  body?: unknown,
-  withAuth = true,
-): Promise<T> {
+  body: unknown,
+  withAuth: boolean,
+): Promise<Response> {
   let response = await send(method, path, body, withAuth);
   if (response.status === 401 && withAuth && hasStoredSession()) {
     if (await refreshOnce()) {
@@ -140,6 +140,20 @@ export async function request<T>(
     }
   }
   if (!response.ok) throw await toError(response);
+  return response;
+}
+
+export async function download(path: string): Promise<Blob> {
+  return (await authorized('GET', path, undefined, true)).blob();
+}
+
+export async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  withAuth = true,
+): Promise<T> {
+  const response = await authorized(method, path, body, withAuth);
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }

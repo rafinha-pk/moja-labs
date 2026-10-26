@@ -12,6 +12,7 @@ from app.projects.models import Project, ProjectType
 
 SETUP_STEPS: dict[str, tuple[str, ...]] = {
     ProjectType.WEB.value: ("repository", "initial_commit", "environment"),
+    ProjectType.MOBILE.value: ("repository", "initial_commit", "environment"),
 }
 FINISHED = ("done", "skipped")
 RETRYABLE = ("todo", "failed")

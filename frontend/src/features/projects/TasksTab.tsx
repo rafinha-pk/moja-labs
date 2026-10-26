@@ -88,19 +88,21 @@ function TaskDialog({
           onChange={(event) => setTitle(event.target.value)}
           error={fieldError(error, 'title')}
         />
-        <SelectField
-          id="task-area"
-          label={pt.tasks.area.label}
-          hint={pt.tasks.area.hint}
-          value={area}
-          onChange={(event) => setArea(event.target.value as Specialty)}
-        >
-          {areas.map((item) => (
-            <option key={item} value={item}>
-              {pt.tasks.area[item]}
-            </option>
-          ))}
-        </SelectField>
+        {areas.length > 1 && (
+          <SelectField
+            id="task-area"
+            label={pt.tasks.area.label}
+            hint={pt.tasks.area.hint}
+            value={area}
+            onChange={(event) => setArea(event.target.value as Specialty)}
+          >
+            {areas.map((item) => (
+              <option key={item} value={item}>
+                {pt.tasks.area[item]}
+              </option>
+            ))}
+          </SelectField>
+        )}
         <TextArea
           id="task-description"
           label={pt.tasks.descriptionLabel}
@@ -371,7 +373,7 @@ export function TasksTab() {
   const [removing, setRemoving] = useState<Task | null>(null);
   const [adding, setAdding] = useState(false);
   const canRun = project.role === 'owner' || project.role === 'dev';
-  const areas = allowedAreas(project.specialty);
+  const areas = allowedAreas(project.specialty, project.type);
   const [area, setArea] = useState<Specialty>(
     areas.includes('fullstack') ? 'fullstack' : areas[0]!,
   );
@@ -557,19 +559,21 @@ export function TasksTab() {
                 onChange={(event) => setTitle(event.target.value)}
                 error={fieldError(add.error, 'title')}
               />
-              <SelectField
-                id="new-task-area"
-                label={pt.tasks.area.label}
-                hint={pt.tasks.area.hint}
-                value={area}
-                onChange={(event) => setArea(event.target.value as Specialty)}
-              >
-                {areas.map((item) => (
-                  <option key={item} value={item}>
-                    {pt.tasks.area[item]}
-                  </option>
-                ))}
-              </SelectField>
+              {areas.length > 1 && (
+                <SelectField
+                  id="new-task-area"
+                  label={pt.tasks.area.label}
+                  hint={pt.tasks.area.hint}
+                  value={area}
+                  onChange={(event) => setArea(event.target.value as Specialty)}
+                >
+                  {areas.map((item) => (
+                    <option key={item} value={item}>
+                      {pt.tasks.area[item]}
+                    </option>
+                  ))}
+                </SelectField>
+              )}
               <TextArea
                 id="new-task-description"
                 label={`${pt.tasks.descriptionLabel} ${pt.common.optional}`}

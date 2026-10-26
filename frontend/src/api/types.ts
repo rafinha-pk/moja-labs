@@ -33,6 +33,8 @@ export interface Project {
   member_role: Role | null;
   specialty: Specialty;
   access_url: string | null;
+  android_package: string | null;
+  android_min_sdk: number;
   tasks_total: number;
   tasks_done: number;
   created_at: string;
@@ -249,6 +251,17 @@ export interface RunState {
   ready: boolean;
   url: string | null;
   log: string;
+}
+
+export type ApkStatus = 'idle' | 'running' | 'done' | 'failed';
+
+export interface ApkState {
+  available: boolean;
+  state: ApkStatus;
+  log: string;
+  package: string | null;
+  size: number | null;
+  built_at: string | null;
 }
 
 export interface UsageWindow {

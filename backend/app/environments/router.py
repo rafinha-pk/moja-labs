@@ -1,11 +1,15 @@
 from typing import Annotated
 
+from datetime import datetime
+from pathlib import Path
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, StringConstraints
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.environments import runner
+from app.environments import apk, runner
 from app.environments.docker import DockerError
 from app.environments.models import EnvironmentStatus, ProjectEnvironment
 from app.environments.service import current
@@ -80,6 +84,111 @@ def _require_ready(db: Session, project: Project) -> ProjectEnvironment:
     if environment.port is None:
         raise AppError(409, "environment_outdated")
     return environment
+
+
+class ApkOut(BaseModel):
+    available: bool
+    state: str
+    log: str
+    package: str | None
+    size: int | None
+    built_at: datetime | None
+
+
+def _mobile_environment(
+    db: Session, project: Project
+) -> tuple[ProjectEnvironment, Path]:
+    if project.type != "mobile":
+        raise AppError(409, "not_mobile")
+    environment = _require_ready(db, project)
+    return environment, Path(environment.workspace)
+
+
+@router.get("/apk", response_model=ApkOut)
+def read_apk(
+    access: ProjectAccess = can_view_project,
+    db: Session = Depends(get_db),
+    tools: EnvironmentTools = Depends(environment_tools),
+):
+    project = access.project
+    environment = current(db, project.id)
+    if project.type != "mobile" or not _usable(environment):
+        return ApkOut(
+            available=False,
+            state="idle",
+            log="",
+            package=project.android_package,
+            size=None,
+            built_at=None,
+        )
+    state = apk.read_state(
+        tools.docker, environment.container, Path(environment.workspace)
+    )
+    return ApkOut(
+        available=True,
+        state=state.state,
+        log=state.log,
+        package=project.android_package,
+        size=state.size,
+        built_at=state.built_at,
+    )
+
+
+@router.post("/apk", response_model=ApkOut, status_code=202)
+def start_apk(
+    access: ProjectAccess = can_run_project,
+    db: Session = Depends(get_db),
+    tools: EnvironmentTools = Depends(environment_tools),
+):
+    project = access.project
+    environment, workspace = _mobile_environment(db, project)
+    if not (workspace / "frontend" / "package.json").is_file():
+        raise AppError(409, "app_missing")
+    if not project.android_package:
+        raise AppError(409, "package_missing")
+    if runner.is_running(tools.docker, environment.container, runner.BUILD):
+        raise AppError(409, "build_running")
+    try:
+        runner.start(
+            tools.docker,
+            environment.container,
+            apk.build_script(project.android_package, project.android_min_sdk),
+            runner.BUILD,
+        )
+    except DockerError:
+        raise AppError(502, "docker_unavailable") from None
+    return read_apk(access, db, tools)
+
+
+@router.post("/apk/stop", response_model=ApkOut)
+def stop_apk(
+    access: ProjectAccess = can_run_project,
+    db: Session = Depends(get_db),
+    tools: EnvironmentTools = Depends(environment_tools),
+):
+    environment, _ = _mobile_environment(db, access.project)
+    try:
+        runner.stop(tools.docker, environment.container, runner.BUILD)
+    except DockerError:
+        raise AppError(502, "docker_unavailable") from None
+    return read_apk(access, db, tools)
+
+
+@router.get("/apk/file")
+def download_apk(
+    access: ProjectAccess = can_view_project, db: Session = Depends(get_db)
+):
+    environment = current(db, access.project.id)
+    if access.project.type != "mobile" or not _usable(environment):
+        raise AppError(404, "apk_not_found")
+    file = apk.apk_path(Path(environment.workspace))
+    if not file.is_file():
+        raise AppError(404, "apk_not_found")
+    return FileResponse(
+        file,
+        media_type="application/vnd.android.package-archive",
+        filename=f"{access.project.name}-debug.apk",
+    )
 
 
 @router.get("", response_model=RunOut)

@@ -18,7 +18,15 @@ from app.github.models import ProjectRepository
 from app.github.service import resolve_credential, usable_token
 from app.projects.models import Project
 
-DOCKERFILE = Path(__file__).parent / "templates" / "web" / "Dockerfile"
+TEMPLATES = Path(__file__).parent / "templates"
+MOBILE = "mobile"
+WEB_MEMORY = "4g"
+SCAFFOLD_TIMEOUT = 1800
+MOBILE_VOLUMES = (
+    ("moja-gradle-cache", "/home/dev/.gradle"),
+    ("moja-npm-cache", "/home/dev/.npm"),
+    ("moja-android-sdk", "/opt/android-sdk"),
+)
 LOG_LIMIT = 20000
 BUILD_TIMEOUT = 1800
 
@@ -27,9 +35,39 @@ def container_name(project_id: int) -> str:
     return f"moja-p{project_id}"
 
 
-def image_tag() -> str:
-    digest = hashlib.sha256(DOCKERFILE.read_bytes()).hexdigest()[:10]
-    return f"moja-web-dev:{digest}"
+def dockerfile_for(project_type: str) -> Path:
+    kind = MOBILE if project_type == MOBILE else "web"
+    return TEMPLATES / kind / "Dockerfile"
+
+
+def image_tag(project_type: str = "web") -> str:
+    kind = MOBILE if project_type == MOBILE else "web"
+    digest = hashlib.sha256(
+        dockerfile_for(project_type).read_bytes()
+    ).hexdigest()[:10]
+    return f"moja-{kind}-dev:{digest}"
+
+
+def suggest_package(login: str, name: str) -> str:
+    def clean(text: str, fallback: str) -> str:
+        value = "".join(
+            ch for ch in text.lower() if ch.isalnum() and ch.isascii()
+        )
+        if not value or not value[0].isalpha():
+            value = f"{fallback}{value}"
+        return value
+
+    return f"com.{clean(login, 'u')}.{clean(name, 'app')}"
+
+
+SET_PACKAGE = (
+    "node -e \"const fs=require('fs');const j=JSON.parse("
+    "fs.readFileSync('app.json','utf8'));j.expo=j.expo||{};"
+    "j.expo.android=Object.assign({},j.expo.android,{package:"
+    "process.env.MOJA_ANDROID_PACKAGE});fs.writeFileSync('app.json',"
+    "JSON.stringify(j,null,2)+'\\n')\""
+)
+EXPO_WEB_COMMAND = "cd frontend && CI=1 npx expo start --web --port $PORT"
 
 
 class BuildError(Exception):
@@ -57,7 +95,8 @@ class _Job:
         self.login = login
         self.tools = tools
         self.container = container_name(project.id)
-        self.image = image_tag()
+        self.mobile = project.type == MOBILE
+        self.image = image_tag(project.type)
         self.port = tools.port_base + project.id
         self.branch = "main"
         self.credentials, self.secrets = git_credentials(token)
@@ -113,7 +152,9 @@ class _Job:
                 self.image,
                 "-",
                 code="build_failed",
-                stdin=DOCKERFILE.read_text(encoding="utf-8"),
+                stdin=dockerfile_for(self.project.type).read_text(
+                    encoding="utf-8"
+                ),
                 timeout=BUILD_TIMEOUT,
             )
         else:
@@ -135,7 +176,7 @@ class _Job:
             "--cpus",
             "2",
             "--memory",
-            "4g",
+            self.tools.mobile_memory if self.mobile else WEB_MEMORY,
             "--pids-limit",
             "1024",
             "--security-opt",
@@ -144,6 +185,7 @@ class _Job:
             "1000:1000",
             "-v",
             f"{to_docker_path(workspace)}:/workspace",
+            *self.mobile_volumes(),
             "-w",
             "/workspace",
             "-p",
@@ -153,6 +195,71 @@ class _Job:
             self.image,
             code="container_failed",
         )
+        if self.mobile:
+            paths = [path for _, path in self.volume_list()]
+            self.docker(
+                "exec",
+                "-u",
+                "root",
+                self.container,
+                "chown",
+                "1000:1000",
+                *paths,
+                code="container_failed",
+            )
+
+    def volume_list(self) -> list[tuple[str, str]]:
+        return [
+            *MOBILE_VOLUMES,
+            (
+                f"moja-p{self.project.id}-nm",
+                "/workspace/frontend/node_modules",
+            ),
+        ]
+
+    def mobile_volumes(self) -> list[str]:
+        if not self.mobile:
+            return []
+        return [
+            part
+            for name, path in self.volume_list()
+            for part in ("-v", f"{name}:{path}")
+        ]
+
+    def scaffold_mobile(self, workspace: Path) -> None:
+        if (workspace / "frontend" / "package.json").exists():
+            return
+        self.log("Creating the Expo app (this can take a few minutes)")
+        package = self.project.android_package or suggest_package(
+            self.login, self.project.name
+        )
+        self.project.android_package = package
+        script = (
+            "set -e; cd /tmp && rm -rf scaffold && "
+            "npx --yes create-expo-app@latest scaffold "
+            "--template blank-typescript --no-install && "
+            "mkdir -p /workspace/frontend && "
+            "tar -C scaffold --exclude=./node_modules --exclude=./.git "
+            "--exclude=./AGENTS.md --exclude=./LICENSE -cf - . | "
+            "tar -C /workspace/frontend -xf - && "
+            "cd /workspace/frontend && "
+            + SET_PACKAGE
+            + " && npm install --no-audit --no-fund"
+            + " && npx expo install react-dom react-native-web"
+        )
+        self.docker(
+            "exec",
+            "-e",
+            f"MOJA_ANDROID_PACKAGE={package}",
+            self.container,
+            "sh",
+            "-c",
+            script,
+            code="scaffold_failed",
+            timeout=SCAFFOLD_TIMEOUT,
+        )
+        if not self.project.run_command:
+            self.project.run_command = EXPO_WEB_COMMAND
 
     def configure_git(self) -> None:
         self.git("config", "--global", "--add", "safe.directory", "/workspace")
@@ -199,7 +306,9 @@ class _Job:
                 "checkout", "-f", "-B", self.branch, f"origin/{self.branch}"
             )
         exclude_locally(workspace)
-        self.git("rm", "-r", "--cached", "--ignore-unmatch", "-q", "--", "docs")
+        self.git(
+            "rm", "-r", "--cached", "--ignore-unmatch", "-q", "--", "docs"
+        )
 
     def run(self) -> None:
         self.log("Checking Docker")
@@ -215,6 +324,8 @@ class _Job:
         self.start_container(workspace)
         self.configure_git()
         self.sync_repository(workspace)
+        if self.mobile:
+            self.scaffold_mobile(workspace)
         write_agent_files(
             self.db,
             self.project,
@@ -227,7 +338,9 @@ class _Job:
             self.container,
             "sh",
             "-c",
-            "python --version && node --version && git --version",
+            "node --version && java -version 2>&1 | head -1 && git --version"
+            if self.mobile
+            else "python --version && node --version && git --version",
             code="container_failed",
         )
         self.log(versions)

@@ -39,6 +39,10 @@ def create_task(
     return task
 
 
+def effective_area(project_type: str, area: str) -> str:
+    return TaskArea.FRONTEND.value if project_type == "mobile" else area
+
+
 def project_tasks(
     db: Session, project_id: int, archived: bool | None = None
 ) -> list[Task]:

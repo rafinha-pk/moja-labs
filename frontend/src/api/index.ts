@@ -1,7 +1,8 @@
-import { request } from './client';
+import { download, request } from './client';
 import type {
   AdminProject,
   AdminUser,
+  ApkState,
   AssignableRole,
   GithubAccount,
   ProjectGithub,
@@ -70,6 +71,8 @@ export const projectsApi = {
       name?: string;
       description?: string | null;
       access_url?: string | null;
+      android_package?: string;
+      android_min_sdk?: number;
     },
   ) => request<Project>('PATCH', `/projects/${id}`, data),
   remove: (id: number) => request<void>('DELETE', `/projects/${id}`),
@@ -257,6 +260,14 @@ export const runApi = {
     request<RunState>('POST', `/projects/${projectId}/run/start`),
   stop: (projectId: number) =>
     request<RunState>('POST', `/projects/${projectId}/run/stop`),
+  apk: (projectId: number) =>
+    request<ApkState>('GET', `/projects/${projectId}/run/apk`),
+  buildApk: (projectId: number) =>
+    request<ApkState>('POST', `/projects/${projectId}/run/apk`),
+  stopApk: (projectId: number) =>
+    request<ApkState>('POST', `/projects/${projectId}/run/apk/stop`),
+  apkFile: (projectId: number) =>
+    download(`/projects/${projectId}/run/apk/file`),
 };
 
 export const documentsApi = {

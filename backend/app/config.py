@@ -44,6 +44,7 @@ class Settings:
     project_port_base: int
     project_public_host: str
     project_bind_address: str
+    mobile_memory: str
 
 
 def _default_docker_command() -> str:
@@ -85,6 +86,7 @@ def load_settings() -> Settings:
         project_bind_address=os.environ.get(
             "PROJECT_BIND_ADDRESS", "127.0.0.1"
         ),
+        mobile_memory=os.environ.get("MOBILE_MEMORY", "5g"),
     )
 
 

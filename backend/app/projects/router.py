@@ -43,6 +43,8 @@ def _to_out(
         member_role=member_role,
         specialty=specialty,
         access_url=project.access_url,
+        android_package=project.android_package,
+        android_min_sdk=project.android_min_sdk,
         tasks_total=progress[0],
         tasks_done=progress[1],
         created_at=project.created_at,
@@ -136,6 +138,10 @@ def update_project(
         access.project.description = body.description or None
     if "access_url" in body.model_fields_set:
         access.project.access_url = body.access_url or None
+    if body.android_package is not None:
+        access.project.android_package = body.android_package
+    if body.android_min_sdk is not None:
+        access.project.android_min_sdk = body.android_min_sdk
     db.commit()
     return _access_out(access, db)
 

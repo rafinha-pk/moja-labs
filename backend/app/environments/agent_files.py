@@ -11,7 +11,7 @@ from app.environments.tools import EnvironmentTools
 from app.projects.models import Project
 from app.skills.models import ProjectSkill, Skill
 
-LOCAL_ONLY = ("CLAUDE.md", ".claude/", "docs/")
+LOCAL_ONLY = ("CLAUDE.md", ".claude/", "docs/", ".moja/")
 
 
 def slugify(text: str, fallback: str) -> str:
@@ -55,6 +55,20 @@ def claude_md(
         "",
         "Use git for version control and work on a branch per task.",
     ]
+    if project.type == "mobile":
+        lines += [
+            "",
+            "## Layout",
+            "",
+            "This is an Android-only app made with Expo (React Native and "
+            "TypeScript). The whole app lives in `frontend/` and the "
+            "documentation in `docs/`. There is no back-end in this "
+            "project: if the app needs a server, it is another project. "
+            "Preview the app in the browser with Expo web (`npx expo "
+            "start --web`). Do not build the APK yourself or run `expo "
+            "prebuild`: the user generates the APK with a button in "
+            "Moja Labs.",
+        ]
     if project.type == "web":
         lines += [
             "",

@@ -12,6 +12,7 @@ from app.changes.router import router as changes_router
 from app.config import settings
 from app.db import SessionLocal
 from app.documents.router import router as documents_router
+from app.environments.keepalive import start_keepalive, stop_keepalive
 from app.environments.router import router as run_router
 from app.environments.service import mark_interrupted
 from app.errors import register_error_handlers
@@ -32,7 +33,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     with SessionLocal() as db:
         mark_interrupted(db)
         mark_runs_interrupted(db)
+    keepalive = start_keepalive(settings.docker_command)
     yield
+    stop_keepalive(keepalive)
 
 
 app = FastAPI(title="Moja Labs API", lifespan=lifespan)

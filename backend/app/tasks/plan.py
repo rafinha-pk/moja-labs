@@ -196,7 +196,12 @@ def apply_plan(
             area = "fullstack"
         created.append(
             service.create_task(
-                db, project.id, title, description, TaskSource.AI, area
+                db,
+                project.id,
+                title,
+                description,
+                TaskSource.AI,
+                service.effective_area(project.type, area),
             )
         )
     if run.docs_snapshot:

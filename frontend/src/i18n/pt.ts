@@ -65,7 +65,8 @@ export const pt = {
     typeHints: {
       web: 'Aplicação ou site web.',
       youtube: 'Projeto de conteúdo em vídeo.',
-      mobile: 'Aplicativo de celular (ainda sem recursos próprios).',
+      mobile:
+        'Aplicativo Android feito com Expo (React Native). Gera o APK pelo Moja.',
     },
   },
   roles: {
@@ -251,6 +252,37 @@ export const pt = {
     needsEnvironment:
       'Crie (ou recrie) o ambiente do projeto para poder executá-lo.',
     goToSetup: 'Ir para o setup',
+    apk: {
+      title: 'Gerar APK',
+      hint: 'Gera um APK de depuração para instalar direto no celular (sem publicar em loja). O primeiro build baixa dependências e pode levar vários minutos.',
+      idle: 'Ainda não gerado',
+      running: 'Gerando…',
+      done: 'Pronto',
+      failed: 'Falhou',
+      needsEnvironment:
+        'Crie (ou recrie) o ambiente do projeto para poder gerar o APK.',
+      package: 'Nome do pacote Android',
+      packageHint:
+        'Identificador único do app, como com.seunome.meuapp. Não dá para trocar depois de instalado no celular.',
+      packageInvalid:
+        'Use letras minúsculas, números e _, separados por pontos (ex.: com.seunome.meuapp).',
+      minimum: 'Android mínimo',
+      minimumHint:
+        'Versões mais antigas atingem mais celulares. O piso é o Android 7.0, o mínimo do Expo/React Native atual.',
+      minimumNow: (name: string) => `Atual: ${name}.`,
+      build: 'Gerar APK',
+      buildAgain: 'Gerar de novo',
+      save: 'Salvar configurações',
+      cancel: 'Cancelar geração',
+      download: 'Baixar APK',
+      log: 'Saída do build',
+    },
+    suggestionsMobile: [
+      {
+        label: 'Expo (prévia web)',
+        command: 'cd frontend && CI=1 npx expo start --web --port $PORT',
+      },
+    ],
     suggestions: [
       {
         label: 'Página estática',
@@ -647,6 +679,12 @@ export const pt = {
     github_unreachable: 'Não foi possível falar com o GitHub.',
     environment_not_ready: 'Crie o ambiente do projeto antes de executá-lo.',
     environment_outdated: 'Recrie o ambiente do projeto para poder executá-lo.',
+    not_mobile: 'Este recurso só existe em projetos de app mobile.',
+    app_missing:
+      'O app Expo ainda não foi criado. Recrie o ambiente do projeto.',
+    package_missing: 'Defina o nome do pacote Android antes de gerar o APK.',
+    build_running: 'Já existe um APK sendo gerado.',
+    apk_not_found: 'Nenhum APK foi gerado ainda.',
     run_command_missing: 'Defina o comando para iniciar o projeto.',
     already_running: 'O projeto já está rodando.',
     agent_busy: 'A IA já está trabalhando neste projeto.',
