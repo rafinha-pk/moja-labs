@@ -10,10 +10,13 @@ import { ErrorAlert } from '../../components/ErrorAlert';
 import { SelectField, TextField } from '../../components/Field';
 import { pt } from '../../i18n/pt';
 import {
+  ANDROID_ABIS,
   ANDROID_LEVELS,
   androidName,
   formatSize,
   isValidPackage,
+  sameAbis,
+  toggleAbi,
 } from '../../lib/android';
 import { useProject } from './ProjectLayout';
 
@@ -28,6 +31,7 @@ export function ApkCard() {
   const action = useAction();
   const [pack, setPack] = useState<string | null>(null);
   const [level, setLevel] = useState<number | null>(null);
+  const [chosen, setChosen] = useState<string[] | null>(null);
   const logEnd = useRef<HTMLPreElement>(null);
   const building = data?.state === 'running';
 
@@ -46,9 +50,11 @@ export function ApkCard() {
 
   const packageName = pack ?? project.android_package ?? '';
   const minSdk = level ?? project.android_min_sdk;
+  const abis = chosen ?? project.android_abis;
   const changed =
     packageName !== (project.android_package ?? '') ||
-    minSdk !== project.android_min_sdk;
+    minSdk !== project.android_min_sdk ||
+    !sameAbis(abis, project.android_abis);
   const valid = isValidPackage(packageName);
 
   const saveSettings = async () => {
@@ -56,10 +62,12 @@ export function ApkCard() {
       await projectsApi.update(project.id, {
         android_package: packageName,
         android_min_sdk: minSdk,
+        android_abis: abis,
       }),
     );
     setPack(null);
     setLevel(null);
+    setChosen(null);
   };
 
   const save = async () => {
@@ -86,7 +94,7 @@ export function ApkCard() {
     const url = URL.createObjectURL(result.value);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${project.name}-debug.apk`;
+    link.download = `${project.name}.apk`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -143,6 +151,24 @@ export function ApkCard() {
               ))}
             </SelectField>
           </div>
+        )}
+        {canRun && (
+          <fieldset className="flex flex-col gap-2" disabled={building}>
+            <legend className="text-sm font-semibold">{text.abis}</legend>
+            <p className="text-xs text-muted">{text.abisHint}</p>
+            {ANDROID_ABIS.map((abi) => (
+              <label key={abi} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={abis.includes(abi)}
+                  disabled={abis.length === 1 && abis.includes(abi)}
+                  onChange={() => setChosen(toggleAbi(abis, abi))}
+                />
+                <code>{abi}</code>
+                <span className="text-muted">{text.abiNames[abi]}</span>
+              </label>
+            ))}
+          </fieldset>
         )}
         <div className="flex flex-wrap gap-2">
           {canRun &&

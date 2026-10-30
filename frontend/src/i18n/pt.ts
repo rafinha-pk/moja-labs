@@ -254,7 +254,7 @@ export const pt = {
     goToSetup: 'Ir para o setup',
     apk: {
       title: 'Gerar APK',
-      hint: 'Gera um APK de depuração para instalar direto no celular (sem publicar em loja). O primeiro build baixa dependências e pode levar vários minutos.',
+      hint: 'Gera um APK pronto para instalar direto no celular (sem publicar em loja). O app já leva o código dentro, então abre sem servidor. O primeiro build baixa dependências e pode levar vários minutos.',
       idle: 'Ainda não gerado',
       running: 'Gerando…',
       done: 'Pronto',
@@ -269,6 +269,15 @@ export const pt = {
       minimum: 'Android mínimo',
       minimumHint:
         'Versões mais antigas atingem mais celulares. O piso é o Android 7.0, o mínimo do Expo/React Native atual.',
+      abis: 'Arquiteturas do APK',
+      abisHint:
+        'Cada arquitetura marcada deixa o build mais demorado e o APK maior. Mantenha só as que você precisa.',
+      abiNames: {
+        'arm64-v8a': 'celulares atuais (recomendado)',
+        'armeabi-v7a': 'celulares antigos de 32 bits',
+        x86_64: 'emulador no computador',
+        x86: 'emulador antigo no computador',
+      } as Record<string, string>,
       minimumNow: (name: string) => `Atual: ${name}.`,
       build: 'Gerar APK',
       buildAgain: 'Gerar de novo',

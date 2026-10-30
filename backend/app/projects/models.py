@@ -25,6 +25,7 @@ class Project(Base):
     run_command: Mapped[str | None] = mapped_column(Text)
     android_package: Mapped[str | None] = mapped_column(String(100))
     android_min_sdk: Mapped[int] = mapped_column(default=24)
+    android_abis: Mapped[str] = mapped_column(String(60), default="arm64-v8a")
     tasks_model: Mapped[str] = mapped_column(
         String(40), default="claude-sonnet-5-5"
     )

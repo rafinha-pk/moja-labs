@@ -73,6 +73,7 @@ export const projectsApi = {
       access_url?: string | null;
       android_package?: string;
       android_min_sdk?: number;
+      android_abis?: string[];
     },
   ) => request<Project>('PATCH', `/projects/${id}`, data),
   remove: (id: number) => request<void>('DELETE', `/projects/${id}`),

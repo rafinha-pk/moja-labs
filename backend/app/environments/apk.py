@@ -4,18 +4,31 @@ from pathlib import Path
 
 from app.environments import runner
 from app.environments.builder import SET_PACKAGE
-from app.environments.docker import Docker
+from app.environments.docker import Docker, DockerError
 
 OUTPUT_FOLDER = ".moja"
-APK_NAME = "app-debug.apk"
+APK_NAME = "app.apk"
 EXIT_FILE = "/tmp/moja-build.exit"
 GRADLE_MEMORY = "-Dorg.gradle.jvmargs=-Xmx2g"
+NO_MINIFY = "-Pandroid.enableMinifyInReleaseBuilds=false"
 MIN_SDK_PATTERN = (
     "s/minSdkVersion rootProject.ext.minSdkVersion/minSdkVersion {}/"
 )
+KILL_LEFTOVERS = (
+    "pkill -f '[g]radle'; pkill -f '[k]otlin-compiler'; "
+    "pkill -f '[n]inja'; pkill -f '[c]make'; pkill -f '[c]lang'; true"
+)
 
 
-def build_script(package: str, min_sdk: int) -> str:
+def stop_build(docker: Docker, container: str) -> None:
+    runner.stop(docker, container, runner.BUILD)
+    try:
+        docker.run("exec", container, "sh", "-c", KILL_LEFTOVERS)
+    except DockerError:
+        pass
+
+
+def build_script(package: str, min_sdk: int, abis: str) -> str:
     steps = " ".join(
         [
             "set -e;",
@@ -31,8 +44,10 @@ def build_script(package: str, min_sdk: int) -> str:
             f"sed -i '{MIN_SDK_PATTERN.format(min_sdk)}'"
             " android/app/build.gradle;",
             "cd android;",
-            f"./gradlew assembleDebug --no-daemon {GRADLE_MEMORY};",
-            "cp app/build/outputs/apk/debug/app-debug.apk"
+            f"./gradlew assembleRelease --no-daemon {GRADLE_MEMORY}"
+            f" {NO_MINIFY}"
+            f" -PreactNativeArchitectures={abis};",
+            "cp app/build/outputs/apk/release/app-release.apk"
             f" /workspace/{OUTPUT_FOLDER}/{APK_NAME};",
         ]
     )

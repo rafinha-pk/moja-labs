@@ -20,6 +20,21 @@ export const ANDROID_LEVELS: AndroidLevel[] = [
   { api: 35, name: 'Android 15' },
 ];
 
+export const DEFAULT_ABIS = ['arm64-v8a'];
+
+export const ANDROID_ABIS = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'];
+
+export function toggleAbi(current: string[], abi: string): string[] {
+  const next = current.includes(abi)
+    ? current.filter((item) => item !== abi)
+    : [...current, abi];
+  return ANDROID_ABIS.filter((item) => next.includes(item));
+}
+
+export function sameAbis(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((item) => b.includes(item));
+}
+
 export function androidName(api: number): string {
   const level = ANDROID_LEVELS.find((item) => item.api === api);
   return level ? level.name : `API ${api}`;

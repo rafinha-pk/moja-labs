@@ -19,7 +19,12 @@ from app.members.access import (
 from app.members.models import ProjectMember
 from app.members.permissions import Role
 from app.projects.models import Project
-from app.projects.schemas import ProjectCreate, ProjectOut, ProjectUpdate
+from app.projects.schemas import (
+    ANDROID_ABIS,
+    ProjectCreate,
+    ProjectOut,
+    ProjectUpdate,
+)
 from app.tasks.service import task_counts
 from app.users.models import User
 
@@ -45,6 +50,7 @@ def _to_out(
         access_url=project.access_url,
         android_package=project.android_package,
         android_min_sdk=project.android_min_sdk,
+        android_abis=project.android_abis.split(","),
         tasks_total=progress[0],
         tasks_done=progress[1],
         created_at=project.created_at,
@@ -142,6 +148,11 @@ def update_project(
         access.project.android_package = body.android_package
     if body.android_min_sdk is not None:
         access.project.android_min_sdk = body.android_min_sdk
+    if body.android_abis is not None:
+        chosen = set(body.android_abis)
+        access.project.android_abis = ",".join(
+            abi for abi in ANDROID_ABIS if abi in chosen
+        )
     db.commit()
     return _access_out(access, db)
 

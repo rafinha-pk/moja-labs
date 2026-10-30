@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -35,12 +35,17 @@ AndroidPackage = Annotated[
 ]
 
 
+ANDROID_ABIS = ("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+Abi = Literal["arm64-v8a", "armeabi-v7a", "x86_64", "x86"]
+
+
 class ProjectUpdate(BaseModel):
     name: Name | None = None
     access_url: AccessUrl | None = None
     description: Description | None = None
     android_package: AndroidPackage | None = None
     android_min_sdk: Annotated[int, Field(ge=24, le=35)] | None = None
+    android_abis: Annotated[list[Abi], Field(min_length=1)] | None = None
 
 
 class ProjectOut(BaseModel):
@@ -55,6 +60,7 @@ class ProjectOut(BaseModel):
     access_url: str | None = None
     android_package: str | None = None
     android_min_sdk: int = 24
+    android_abis: list[str] = ["arm64-v8a"]
     tasks_total: int = 0
     tasks_done: int = 0
     created_at: datetime

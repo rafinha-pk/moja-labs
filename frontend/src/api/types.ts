@@ -35,6 +35,7 @@ export interface Project {
   access_url: string | null;
   android_package: string | null;
   android_min_sdk: number;
+  android_abis: string[];
   tasks_total: number;
   tasks_done: number;
   created_at: string;

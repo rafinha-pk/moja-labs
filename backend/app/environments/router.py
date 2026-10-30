@@ -152,7 +152,11 @@ def start_apk(
         runner.start(
             tools.docker,
             environment.container,
-            apk.build_script(project.android_package, project.android_min_sdk),
+            apk.build_script(
+                project.android_package,
+                project.android_min_sdk,
+                project.android_abis,
+            ),
             runner.BUILD,
         )
     except DockerError:
@@ -168,7 +172,7 @@ def stop_apk(
 ):
     environment, _ = _mobile_environment(db, access.project)
     try:
-        runner.stop(tools.docker, environment.container, runner.BUILD)
+        apk.stop_build(tools.docker, environment.container)
     except DockerError:
         raise AppError(502, "docker_unavailable") from None
     return read_apk(access, db, tools)
@@ -187,7 +191,7 @@ def download_apk(
     return FileResponse(
         file,
         media_type="application/vnd.android.package-archive",
-        filename=f"{access.project.name}-debug.apk",
+        filename=f"{access.project.name}.apk",
     )
 
 
