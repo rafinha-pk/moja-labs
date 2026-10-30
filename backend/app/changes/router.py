@@ -21,12 +21,15 @@ from app.members.access import (
     can_view_project,
 )
 
+PROMPT_DIFF_LIMIT = 30_000
+
 router = APIRouter(prefix="/projects/{project_id}/changes", tags=["changes"])
 
 SHORT = 7
 
 Message = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=2000),
 ]
 
 
@@ -156,7 +159,7 @@ def suggest_message(
     try:
         if not repo.changes():
             raise AppError(409, "nothing_to_commit")
-        diff = repo.diff()
+        diff = repo.diff()[:PROMPT_DIFF_LIMIT]
         recent = [entry.subject for entry in repo.history(10)]
     except DockerError:
         raise AppError(502, "git_failed") from None
