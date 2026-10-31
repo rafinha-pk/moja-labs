@@ -3,15 +3,17 @@ from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Response
-from pydantic import BaseModel, StringConstraints, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent import runner
 from app.agent.models import AgentRun, RunStatus
 from app.agent.service import ensure_idle, purge_runs, start_run
+from app.attachments.service import MAX_PER_MESSAGE, attachment_note
 from app.clock import utcnow
 from app.db import get_db
+from app.documents.service import workspace_of
 from app.environments.tools import EnvironmentTools, environment_tools
 from app.errors import AppError
 from app.members.access import (
@@ -37,6 +39,7 @@ class RunIn(BaseModel):
     kind: Kind
     prompt: Prompt
     new_conversation: bool = False
+    attachments: list[str] = Field(default=[], max_length=MAX_PER_MESSAGE)
 
 
 class RunSummary(BaseModel):
@@ -98,12 +101,16 @@ def create_run(
     db: Session = Depends(get_db),
     tools: EnvironmentTools = Depends(environment_tools),
 ):
+    prompt = body.prompt
+    if body.attachments:
+        workspace = workspace_of(db, access.project.id)
+        prompt += attachment_note(workspace, body.attachments)
     run = start_run(
         db,
         access.project,
         access.user,
         body.kind,
-        body.prompt,
+        prompt,
         tools,
         body.new_conversation,
     )

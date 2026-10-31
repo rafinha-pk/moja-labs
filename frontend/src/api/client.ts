@@ -73,13 +73,15 @@ async function send(
   withAuth: boolean,
 ): Promise<Response> {
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const raw = body instanceof Blob;
+  if (raw) headers['Content-Type'] = body.type || 'application/octet-stream';
+  else if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (withAuth && accessToken) headers.Authorization = `Bearer ${accessToken}`;
   try {
     return await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'network');
@@ -141,6 +143,10 @@ async function authorized(
   }
   if (!response.ok) throw await toError(response);
   return response;
+}
+
+export async function upload<T>(path: string, file: Blob): Promise<T> {
+  return (await (await authorized('PUT', path, file, true)).json()) as T;
 }
 
 export async function download(path: string): Promise<Blob> {

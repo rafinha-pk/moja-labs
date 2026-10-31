@@ -61,10 +61,14 @@ export function GitTab() {
     return true;
   };
 
-  const commit = async () => {
-    if (await finish(() => changesApi.commit(project.id, message))) {
-      setMessage('');
-    }
+  const commit = async (andPush: boolean) => {
+    const committed = await action.run(() =>
+      changesApi.commit(project.id, message),
+    );
+    if (!committed) return;
+    setData(committed.value);
+    setMessage('');
+    if (andPush) await finish(() => changesApi.push(project.id));
   };
 
   const suggest = async () => {
@@ -158,7 +162,17 @@ export function GitTab() {
                           suggesting !== null ||
                           message.trim() === ''
                         }
-                        onClick={commit}
+                        onClick={() => commit(true)}
+                      >
+                        {text.commitAndPush}
+                      </Button>
+                      <Button
+                        disabled={
+                          action.pending ||
+                          suggesting !== null ||
+                          message.trim() === ''
+                        }
+                        onClick={() => commit(false)}
                       >
                         {text.commit}
                       </Button>

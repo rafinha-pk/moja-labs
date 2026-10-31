@@ -1,8 +1,9 @@
-import { download, request } from './client';
+import { download, request, upload } from './client';
 import type {
   AdminProject,
   AdminUser,
   ApkState,
+  Attachment,
   AssignableRole,
   GithubAccount,
   ProjectGithub,
@@ -291,6 +292,21 @@ export const documentsApi = {
     }),
 };
 
+export const attachmentsApi = {
+  list: (projectId: number) =>
+    request<Attachment[]>('GET', `/projects/${projectId}/attachments`),
+  upload: (projectId: number, file: File) =>
+    upload<Attachment>(
+      `/projects/${projectId}/attachments?name=${encodeURIComponent(file.name)}`,
+      file,
+    ),
+  remove: (projectId: number, name: string) =>
+    request<void>(
+      'DELETE',
+      `/projects/${projectId}/attachments/${encodeURIComponent(name)}`,
+    ),
+};
+
 export const agentApi = {
   runs: (projectId: number, kind: AgentKind = 'docs') =>
     request<AgentRunSummary[]>(
@@ -304,11 +320,13 @@ export const agentApi = {
     prompt: string,
     newConversation: boolean,
     kind: AgentKind = 'docs',
+    attachments: string[] = [],
   ) =>
     request<AgentRun>('POST', `/projects/${projectId}/agent/runs`, {
       kind,
       prompt,
       new_conversation: newConversation,
+      attachments,
     }),
   stop: (projectId: number, runId: number) =>
     request<AgentRun>(

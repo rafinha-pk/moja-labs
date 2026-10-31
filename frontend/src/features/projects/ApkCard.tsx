@@ -13,11 +13,11 @@ import {
   ANDROID_ABIS,
   ANDROID_LEVELS,
   androidName,
-  formatSize,
   isValidPackage,
   sameAbis,
   toggleAbi,
 } from '../../lib/android';
+import { formatSize } from '../../lib/files';
 import { useProject } from './ProjectLayout';
 
 const POLL_MS = 3000;

@@ -3,12 +3,14 @@ import { agentApi, tasksApi } from '../../api';
 import type { AgentRunSummary, Task } from '../../api/types';
 import { useAction } from '../../api/useAction';
 import { useRequest } from '../../api/useRequest';
+import { AttachmentPicker } from '../../components/AttachmentPicker';
 import { Bubble } from '../../components/Bubble';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ErrorAlert } from '../../components/ErrorAlert';
 import { Loading } from '../../components/Loading';
 import { MicButton } from '../../components/MicButton';
+import { UserMessage } from '../../components/UserMessage';
 import { pt } from '../../i18n/pt';
 import { conversationOf, latestDraft } from '../../lib/chat';
 
@@ -79,6 +81,7 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
   const plan = useRequest(loadPlan);
   const action = useAction();
   const [prompt, setPrompt] = useState('');
+  const [attached, setAttached] = useState<string[]>([]);
   const messages = useRef<HTMLDivElement>(null);
   const previous = useRef<string | null>(null);
 
@@ -117,10 +120,11 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
     const message = (override ?? prompt).trim();
     if (!message) return;
     const result = await action.run(() =>
-      agentApi.start(projectId, message, false, 'tasks'),
+      agentApi.start(projectId, message, false, 'tasks', attached),
     );
     if (!result) return;
     setPrompt('');
+    setAttached([]);
     runs.reload();
   };
 
@@ -214,11 +218,11 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
               conversation.map((run) => (
                 <div key={run.id} className="flex flex-col gap-2">
                   <Bubble mine>
-                    <p className="whitespace-pre-wrap">
-                      {run.from_docs && run.resumed_from === null
-                        ? text.searchLabel
-                        : userText(run.prompt)}
-                    </p>
+                    {run.from_docs && run.resumed_from === null ? (
+                      <p className="whitespace-pre-wrap">{text.searchLabel}</p>
+                    ) : (
+                      <UserMessage text={userText(run.prompt)} />
+                    )}
                   </Bubble>
                   <Bubble mine={false}>
                     <Answer run={run} showTasks={run.id === draft?.id} />
@@ -244,6 +248,12 @@ export function PlannerPanel({ projectId, onApplied }: PlannerPanelProps) {
                 }
               }}
               className="w-full resize-none rounded-md border border-line bg-inset px-3 py-1.5 text-sm text-fg placeholder:text-muted focus:border-accent-emphasis disabled:opacity-60"
+            />
+            <AttachmentPicker
+              projectId={projectId}
+              files={attached}
+              disabled={running}
+              onChange={setAttached}
             />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex min-w-0 flex-col gap-1">

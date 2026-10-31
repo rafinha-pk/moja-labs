@@ -254,6 +254,12 @@ export interface RunState {
   log: string;
 }
 
+export interface Attachment {
+  name: string;
+  size: number;
+  modified: string;
+}
+
 export type ApkStatus = 'idle' | 'running' | 'done' | 'failed';
 
 export interface ApkState {

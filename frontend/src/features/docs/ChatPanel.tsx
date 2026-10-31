@@ -3,12 +3,14 @@ import { agentApi } from '../../api';
 import type { AgentRunSummary, AgentStatus } from '../../api/types';
 import { useAction } from '../../api/useAction';
 import { useRequest } from '../../api/useRequest';
+import { AttachmentPicker } from '../../components/AttachmentPicker';
 import { Button } from '../../components/Button';
 import { Bubble } from '../../components/Bubble';
 import { Card } from '../../components/Card';
 import { ErrorAlert } from '../../components/ErrorAlert';
 import { Loading } from '../../components/Loading';
 import { MicButton } from '../../components/MicButton';
+import { UserMessage } from '../../components/UserMessage';
 import { Markdown } from '../../components/Markdown';
 import { pt } from '../../i18n/pt';
 import { conversationOf } from '../../lib/chat';
@@ -54,6 +56,7 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
   const runs = useRequest(loadRuns);
   const action = useAction();
   const [prompt, setPrompt] = useState('');
+  const [attached, setAttached] = useState<string[]>([]);
   const messages = useRef<HTMLDivElement>(null);
   const previous = useRef<AgentStatus | null>(null);
 
@@ -94,13 +97,21 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
   if (!runs.data) return <Loading />;
 
   const send = async (override?: string) => {
+    const files = attached;
     const message = (override ?? prompt).trim();
     if (!message) return;
     const result = await action.run(() =>
-      agentApi.start(projectId, message, conversation.length === 0),
+      agentApi.start(
+        projectId,
+        message,
+        conversation.length === 0,
+        'docs',
+        files,
+      ),
     );
     if (!result) return;
     setPrompt('');
+    setAttached([]);
     runs.reload();
   };
 
@@ -152,7 +163,7 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
             conversation.map((run) => (
               <div key={run.id} className="flex flex-col gap-2">
                 <Bubble mine>
-                  <p className="whitespace-pre-wrap">{run.prompt}</p>
+                  <UserMessage text={run.prompt} />
                 </Bubble>
                 <Bubble mine={false}>
                   <Answer
@@ -181,6 +192,12 @@ export function ChatPanel({ projectId, onFinished }: ChatPanelProps) {
               }
             }}
             className="w-full resize-none rounded-md border border-line bg-inset px-3 py-1.5 text-sm text-fg placeholder:text-muted focus:border-accent-emphasis disabled:opacity-60"
+          />
+          <AttachmentPicker
+            projectId={projectId}
+            files={attached}
+            disabled={running}
+            onChange={setAttached}
           />
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 flex-col gap-1">

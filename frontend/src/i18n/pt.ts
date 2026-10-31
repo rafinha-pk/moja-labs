@@ -236,6 +236,20 @@ export const pt = {
       },
     },
   },
+  attachments: {
+    title: 'Anexos',
+    add: 'Adicionar anexo',
+    attach: 'Anexar',
+    uploading: 'Enviando…',
+    remove: 'Tirar',
+    delete: 'Apagar',
+    empty:
+      'Nenhum anexo ainda. Anexe imagens, PDFs ou textos nos chats para a IA usar como contexto.',
+    hint: 'Os anexos ficam só no seu computador, na pasta do projeto (.moja/anexos), e nunca vão para o Git. A IA recebe apenas o caminho e abre o arquivo quando precisa. Apague o que não for mais usar.',
+    tooBig: 'O arquivo passa de 10 MB e não foi anexado.',
+    summary: (count: number, size: string) =>
+      `${count} ${count === 1 ? 'arquivo' : 'arquivos'} · ${size}`,
+  },
   run: {
     title: 'Executar',
     running: 'Rodando',
@@ -392,7 +406,8 @@ export const pt = {
     suggest: 'Sugerir mensagem com IA',
     suggesting: 'A IA está lendo as alterações…',
     suggestFailed: 'A IA não conseguiu sugerir uma mensagem. Tente de novo.',
-    commit: 'Fazer commit',
+    commit: 'Só commit',
+    commitAndPush: 'Commit e push',
     push: 'Enviar para o GitHub',
     unpushed: 'Commits ainda não enviados',
     history: 'Últimos commits',
@@ -688,6 +703,12 @@ export const pt = {
     github_unreachable: 'Não foi possível falar com o GitHub.',
     environment_not_ready: 'Crie o ambiente do projeto antes de executá-lo.',
     environment_outdated: 'Recrie o ambiente do projeto para poder executá-lo.',
+    attachment_type_invalid:
+      'Tipo de arquivo não aceito. Use imagem, PDF, md, txt, json ou csv.',
+    attachment_empty: 'O arquivo está vazio.',
+    attachment_too_large: 'O arquivo passa de 10 MB.',
+    attachment_not_found: 'Anexo não encontrado.',
+    too_many_attachments: 'Há anexos demais neste projeto. Apague alguns.',
     not_mobile: 'Este recurso só existe em projetos de app mobile.',
     app_missing:
       'O app Expo ainda não foi criado. Recrie o ambiente do projeto.',

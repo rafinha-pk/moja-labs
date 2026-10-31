@@ -11,6 +11,7 @@ import { ExecutedTasksPage } from './features/projects/ExecutedTasksPage';
 import { GitTab } from './features/projects/GitTab';
 import { MembersTab } from './features/projects/MembersTab';
 import { OverviewTab } from './features/projects/OverviewTab';
+import { AttachmentsTab } from './features/projects/AttachmentsTab';
 import { ProjectLayout } from './features/projects/ProjectLayout';
 import { RunTab } from './features/projects/RunTab';
 import { SetupTab } from './features/projects/SetupTab';
@@ -58,6 +59,7 @@ export function App() {
               }
             />
             <Route path="run" element={<RunTab />} />
+            <Route path="attachments" element={<AttachmentsTab />} />
             <Route path="tasks" element={<TasksTab />} />
             <Route path="tasks/executed" element={<ExecutedTasksPage />} />
             <Route path="git" element={<GitTab />} />

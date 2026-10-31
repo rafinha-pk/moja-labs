@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.admin.router import router as admin_router
 from app.agent.router import router as agent_router
 from app.agent.service import mark_interrupted as mark_runs_interrupted
+from app.attachments.router import router as attachments_router
 from app.auth.router import router as auth_router
 from app.changes.router import router as changes_router
 from app.config import settings
@@ -56,6 +57,7 @@ app.include_router(members_router)
 app.include_router(setup_router)
 app.include_router(run_router)
 app.include_router(documents_router)
+app.include_router(attachments_router)
 app.include_router(agent_router)
 app.include_router(usage_router)
 app.include_router(changes_router)

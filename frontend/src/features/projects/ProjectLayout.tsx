@@ -71,6 +71,9 @@ export function ProjectLayout() {
             <NavLink to="run" className={tabClass}>
               {pt.run.title}
             </NavLink>
+            <NavLink to="attachments" className={tabClass}>
+              {pt.attachments.title}
+            </NavLink>
           </>
         )}
         <NavLink to="tasks" className={tabClass}>
